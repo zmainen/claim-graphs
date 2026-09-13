@@ -105,7 +105,9 @@ ROLES = [
                       "for its interpretation: the sorting pipeline, the null distribution, the "
                       "model fit that licenses a model-based analysis. Not procedure for its own "
                       "sake — which software ran the task is not a claim unless a result turns on "
-                      "it.",
+                      "it. A localizer — a contrast run only to define a region or a set "
+                      "of trials for a later analysis — is `methodological`, not "
+                      "`empirical`, because the paper does not argue from it.",
         "typical_claim_type": "assessment",
         "signals": ["analysis is on", "nulls are", "fit better than", "validated against"],
         "carries": "`enables-method` to the results it warrants",
@@ -247,6 +249,17 @@ CLAIM_TYPES = [
     ("hypothesis", "a proposition bet on, not yet evidenced by this paper's results"),
     ("prediction", "a deduced expectation, to be tested by an empirical claim"),
 ]
+
+# `confidence` on an assertion and `readers` are different fields and are constantly read as
+# one. `confidence` is this paper's own confidence in the proposition — analyst judgement, and
+# the writer leaves it absent rather than guessing. `readers` is agreement at extraction, which
+# is a fact about the readers and not about the world; that is the vocabulary below.
+
+ASSERTION_CONFIDENCE_NOTE = (
+    "`confidence` on an assertion is this paper's own confidence in the proposition — analyst "
+    "judgement, which the writer leaves absent rather than inventing. It is not `readers`, the "
+    "agreement between extraction readers recorded beside it."
+)
 
 # ── Confidence, after reconciliation ─────────────────────────────────────
 # A fact about agreement between the readers, not about the world. The partition means most
