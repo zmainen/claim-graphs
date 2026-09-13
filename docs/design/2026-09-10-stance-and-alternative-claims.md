@@ -1,7 +1,7 @@
 # Stance, and alternative explanations as claims
 
 **Status:** accepted, implemented for Gädeke
-**Issue:** [#3](https://github.com/zmainen/claim-graphs/issues/3)
+**Issue:** [#3](https://github.com/zmainen/elife-claim-trees/issues/3)
 **Supersedes nothing. Depends on:** `docs/claim-format.md` §1–2
 
 A claim tree can record what a result supports. It cannot record what a result *rules out*,
@@ -176,8 +176,8 @@ one, and stay open under [#3].
 - **Who authors an attributed rival?** `attributes` needs the citation to point somewhere. The
   corpus has a `literature-context` role that may already be the right target.
 
-[#4]: https://github.com/zmainen/claim-graphs/issues/4
-[#5]: https://github.com/zmainen/claim-graphs/issues/5
-[#6]: https://github.com/zmainen/claim-graphs/issues/6
-[#3]: https://github.com/zmainen/claim-graphs/issues/3
-[#8]: https://github.com/zmainen/claim-graphs/issues/8
+[#4]: https://github.com/zmainen/elife-claim-trees/issues/4
+[#5]: https://github.com/zmainen/elife-claim-trees/issues/5
+[#6]: https://github.com/zmainen/elife-claim-trees/issues/6
+[#3]: https://github.com/zmainen/elife-claim-trees/issues/3
+[#8]: https://github.com/zmainen/elife-claim-trees/issues/8
