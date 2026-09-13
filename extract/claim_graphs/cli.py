@@ -28,6 +28,7 @@ import sys
 from pathlib import Path
 
 from . import __version__
+from . import claimfile
 from .config import (
     Config,
     DEFAULT_MODEL_CAPTION,
@@ -484,16 +485,8 @@ def _load_claim_frontmatter(d: Path) -> list:
     for f in sorted(d.glob("*.md")):
         if f.name == "index.md":
             continue
-        m = re.match(r"^---\n(.*?)\n---", f.read_text(encoding="utf-8"), re.S)
-        if not m:
-            continue
-        # Some committed files put an empty list at column 0 on the line after
-        # its key, which strict YAML rejects. Normalise rather than edit source.
-        body = re.sub(r"^([A-Za-z0-9_-]+):\n(\[\]|\{\})\s*$", r"\1: \2",
-                      m.group(1), flags=re.M)
-        try:
-            fm = yaml.safe_load(body) or {}
-        except yaml.YAMLError:
+        fm = claimfile.frontmatter(f)
+        if fm is None:
             continue
         if fm.get("slug"):
             out.append(fm)

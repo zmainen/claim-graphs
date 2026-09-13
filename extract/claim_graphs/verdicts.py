@@ -39,9 +39,9 @@ default. `validate` refuses the four things a verdict file must never say. `eval
 from __future__ import annotations
 
 import json
-import re
 from datetime import datetime, timezone
 from pathlib import Path
+from . import claimfile
 
 # ── the vocabulary ────────────────────────────────────────────────────────────
 
@@ -286,7 +286,6 @@ def is_complete(records: list[dict], *, claim_slugs, edge_triples) -> bool:
 # A frontmatter reader kept here rather than borrowed from evaluate.py so this module carries no
 # dependency on the model-call chain: a validator must import without a backend.
 
-_FM = re.compile(r"^---\n(.*?)\n---", re.S)
 
 # The relation vocabulary, from scripts/relations.py; `part-of` is a claim verdict, not an edge.
 def _edge_relations() -> set[str]:
@@ -301,16 +300,7 @@ def _edge_relations() -> set[str]:
 
 
 def read_frontmatter(path: Path) -> dict:
-    import yaml
-    text = Path(path).read_text(encoding="utf-8")
-    m = _FM.match(text)
-    if not m:
-        return {}
-    fixed = re.sub(r"^(\w[\w-]*):\n\[\]", r"\1: []", m.group(1), flags=re.MULTILINE)
-    try:
-        return yaml.safe_load(fixed) or {}
-    except yaml.YAMLError:
-        return {}
+    return claimfile.frontmatter(path) or {}
 
 
 def load_tree(claim_dir: str | Path) -> tuple[list[str], list[tuple[str, str, str]]]:

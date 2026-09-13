@@ -30,6 +30,7 @@ from .config import Config
 from .prepare import _ascii_fold
 from .edges import edges_for_slug
 from .schema import DraftClaimTable, ReconciledClaim
+from . import claimfile
 from .oxa import (
     Claim, ClaimGraph, ClaimRelation, ClaimMetadata, SourceSpan,
     Document, text_node, claim_from_reconciled, build_document, EDGE_MAP,
@@ -47,15 +48,8 @@ logger = logging.getLogger(__name__)
 
 
 def _read_frontmatter(path: Path) -> dict:
-    """One claim file's YAML frontmatter, tolerating the empty-list-at-column-0 quirk."""
-    m = re.match(r"^---\n(.*?)\n---", path.read_text(encoding="utf-8"), re.S)
-    if not m:
-        return {}
-    body = re.sub(r"^([A-Za-z0-9_-]+):\n(\[\]|\{\})\s*$", r"\1: \2", m.group(1), flags=re.M)
-    try:
-        return yaml.safe_load(body) or {}
-    except yaml.YAMLError:
-        return {}
+    """One claim file's YAML frontmatter, or {} for a file that has none or will not parse."""
+    return claimfile.frontmatter(path) or {}
 
 
 def _split_frontmatter(text: str) -> tuple[str, list[str], str] | None:

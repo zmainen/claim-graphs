@@ -37,6 +37,12 @@ except ImportError:
     sys.exit("PyYAML required:  pip install pyyaml")
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+# The package lives beside the runners, in the machinery checkout — not under ROOT,
+# which after the split names the graph.
+sys.path.insert(0, os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "extract"))
+from claim_graphs import claimfile  # noqa: E402
 CLAIMS_DIR = os.path.join(ROOT, "claims")
 
 MARK_RE = re.compile(r"⟦>[a-z0-9_-]*(?:\.[0-9a-z]{4,6})?[^:⟧]*claim=([^\s:⟧]+):\s*@\{(.*?)\}",
@@ -45,15 +51,7 @@ FUNC_RE = re.compile(r"^\s*(\w+)\(\).*?line\s+(\d+)", re.I)
 
 
 def load_frontmatter(path):
-    text = open(path, encoding="utf-8").read()
-    m = re.match(r"^---\n(.*?)\n---", text, re.S)
-    if not m:
-        return None
-    body = re.sub(r"^([A-Za-z0-9_-]+):\n(\[\]|\{\})\s*$", r"\1: \2", m.group(1), flags=re.M)
-    try:
-        return yaml.safe_load(body)
-    except yaml.YAMLError:
-        return None
+    return claimfile.frontmatter(path)
 
 
 def load_paper(slug):

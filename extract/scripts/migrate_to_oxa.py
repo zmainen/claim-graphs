@@ -10,11 +10,13 @@ node, and writes the full paper as a single OXA Article JSON file.
 
 import argparse
 import json
-import re
 import sys
 from pathlib import Path
 
 import yaml
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from claim_graphs import claimfile  # noqa: E402
 
 
 # Edge type → CiTO/claimrel mapping
@@ -57,13 +59,9 @@ def parse_claim_file(path: Path) -> dict | None:
     if len(parts) < 3:
         return None
     try:
-        # Several committed files write an empty list on the line *after* its key, at
-        # column 0 (`belongings:\n[]`), which strict YAML rejects. Every other loader in
-        # this repository normalises it; this one did not, so those files raised, returned
-        # None, and were skipped — silently. Five of Gädeke's 27 claims were missing from
-        # its OXA export, and they were the five carrying verification records.
-        body = re.sub(r"^([A-Za-z0-9_-]+):\n(\[\]|\{\})\s*$", r"\1: \2",
-                      parts[1], flags=re.M)
+        # Five of Gädeke's 27 claims were once missing from its OXA export because this
+        # loader lacked the normalisation every other one had. It now shares theirs.
+        body = claimfile.loadable(parts[1])
         fm = yaml.safe_load(body)
     except yaml.YAMLError as e:
         # Loud, not silent. A claim that cannot be parsed is a claim missing from the
