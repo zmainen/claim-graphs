@@ -94,6 +94,17 @@ def _chain(root: Path, target: str) -> list[dict]:
     return out
 
 
+# What the runbook drives to. `claim-tree` writes the claim files and is not the end of
+# induction: `stance` raises the alternatives a paper argues against and attaches the
+# `rules-out` edges, and every consumer of a finished tree already declares it —
+# `mira-export`, `oxa-export` and `warrant` all name it in `needs`. Driving to `claim-tree`
+# produces a tree that looks finished and contains no eliminative structure at all, which is
+# exactly what the first end-to-end agent run produced: 139 claims, 27 controls, zero
+# `rules-out`. A cycle rules out the other direction — `stance` needs `claim-tree` — so the
+# fix is to name the right destination here rather than to add an edge.
+INDUCTION_TARGET = "stance"
+
+
 # ── tokens ───────────────────────────────────────────────────────────────
 #
 # Each returns the markdown that replaces `{{name}}`. A token that needs a corpus says so by
@@ -202,8 +213,8 @@ def t_check_rules(root: Path, name: str) -> str:
 
 
 def t_agent_runbook(root: Path, name: str) -> str:
-    """The claim-tree chain as an agent runs it: same layers, same prompts, no API key."""
-    chain = _chain(root, "claim-tree")
+    """The induction chain as an agent runs it: same layers, same prompts, no API key."""
+    chain = _chain(root, INDUCTION_TARGET)
     out = [
         "The sequence below is generated from `pipeline/layers.yaml`, which is the same "
         "declaration `pipeline.py run` walks. Do not work from a remembered layer list: a "
@@ -248,7 +259,7 @@ def t_agent_runbook(root: Path, name: str) -> str:
         "prompt on disk and naming the file to write the answer to.",
         "",
         "```bash",
-        "python3 scripts/pipeline.py agent <paper> claim-tree --json \\",
+        f"python3 scripts/pipeline.py agent <paper> {INDUCTION_TARGET} --json \\",
         "    --by \"<the model answering>\" --tokens <what that session spent>",
         "```",
         "",
@@ -261,7 +272,7 @@ def t_agent_runbook(root: Path, name: str) -> str:
         "  \"question\": \"What does the Results section assert?\",",
         "  \"prompt\": \"runs/<paper>/agent/results-reader.prompt.txt\",",
         "  \"answer\": \"runs/<paper>/agent/results-reader.answer.json\",",
-        "  \"next\":   \"python3 scripts/pipeline.py agent <paper> claim-tree\" }",
+        f"  \"next\":   \"python3 scripts/pipeline.py agent <paper> {INDUCTION_TARGET}\" }}",
         "```",
         "",
         "So the whole procedure is: run it, read `prompt`, answer it, write `answer`, run it "
@@ -329,6 +340,7 @@ TOKENS = {
     "layer-table": t_layer_table,
     "contract-vocabulary": t_contract_vocabulary,
 }
+
 
 TOKEN_RE = re.compile(r"\{\{([a-z0-9-]+)\}\}")
 
