@@ -126,8 +126,8 @@ def prepare_layer(paper: str, cfg: Config, *, doi: str | None = None,
     if not doi and pdf_path is None:
         raise SystemExit(
             f"error: no DOI for {paper}. It is read from claims/{paper}/index.md, which does "
-            f"not exist yet for a new paper — pass --doi, or --pdf-path for a paper that is "
-            f"not on the eLife CDN.")
+            f"not exist yet for a new paper — pass --doi, or --pdf-path for a paper no "
+            f"registered source can resolve.")
     prepared = prepare(doi=doi, paper_slug_override=paper,
                        input_format=input_format, pdf_path=pdf_path)
     return _write_json(run_file(paper, "prepared.json", cfg), asdict(prepared))

@@ -30,7 +30,7 @@ explicit `--doi` the first time.
 ```bash
 claim-graphs prepare --paper gadeke-2026-guilt-insula
 claim-graphs prepare --paper <slug> --doi 10.7554/eLife.<id>    # a paper new to the corpus
-claim-graphs prepare --paper <slug> --pdf-path ./paper.pdf      # not on the eLife CDN
+claim-graphs prepare --paper <slug> --pdf-path ./paper.pdf      # no source resolves it
 ```
 
 Fetches the paper — JATS XML for eLife DOIs, which gives clean section boundaries and caption

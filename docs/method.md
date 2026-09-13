@@ -140,7 +140,7 @@ came from — is only as good as the figure structure at intake. Read from a PDF
 publisher's own element id.
 
 The PDF path still exists and is still used, but only deliberately: `--input-format pdf`, or
-`--pdf-path` for a paper that is not on the eLife CDN. There is **no silent fallback** — with a
+`--pdf-path` for a paper no registered source can resolve. There is **no silent fallback** — with a
 DOI and the default `--input-format auto`, the intake is JATS or it fails. A method that
 quietly degraded to PDF when a fetch failed would make every claim below it weaker without
 saying so.
