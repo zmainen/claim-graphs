@@ -42,9 +42,16 @@ def _repo_root() -> Path:
     return Path(__file__).resolve().parents[2]
 
 
-def _relations(root: Path):
-    """`scripts/relations.py`, loaded by path: it is a script's module, not a package's."""
-    p = root / "scripts" / "relations.py"
+def _relations(root: Path | None = None):
+    """`scripts/relations.py`, loaded by path: it is a script's module, not a package's.
+
+    Resolved against the *machinery*, never against the graph. `root` is ignored and kept only
+    so existing callers do not have to change: it used to be `root / "scripts" / "relations.py"`,
+    and once a corpus lives in a separate checkout that root is the graph's — which has no
+    `scripts/` at all after the split, so the contract could not be built from a corpus that had
+    correctly stopped carrying the machinery.
+    """
+    p = _repo_root() / "scripts" / "relations.py"
     spec = importlib.util.spec_from_file_location("relations", p)
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)  # type: ignore[union-attr]

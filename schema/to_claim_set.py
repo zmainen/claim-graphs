@@ -30,12 +30,13 @@ SCHEMA = MACHINERY / "schema" / "claim-set-v0.schema.json"
 ROOT = Path(os.environ.get("CLAIM_GRAPHS_ROOT") or MACHINERY).expanduser()
 CLAIMS = Path(os.environ.get("CLAIM_GRAPHS_CORPUS_DIR") or (ROOT / "claims")).expanduser()
 
-# The relation names a claim file may carry as a top-level key, read from scripts/relations.py,
+# The relation names a claim file may carry as a top-level key, read from the machinery's
+# scripts/relations.py — not the graph's, which after the split has none,
 # which is normative. It was a literal copy of EDGE_KEYS with a comment saying it followed
 # that list; a comment is not a mechanism, and the same list written twice is the defect
 # relations.py was written to end. The schema's enum is still a third copy — issue open.
 _rel_spec = importlib.util.spec_from_file_location(
-    "relations", ROOT / "scripts" / "relations.py")
+    "relations", MACHINERY / "scripts" / "relations.py")
 _relations = importlib.util.module_from_spec(_rel_spec)
 _rel_spec.loader.exec_module(_relations)
 PREDICATES = tuple(sorted(_relations.EDGE_KEYS))
