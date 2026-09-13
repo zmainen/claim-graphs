@@ -128,5 +128,5 @@ that says as much: a claim authored forward, before the data, is not the same ki
 one induced from a published result, and the interchange form must not present them as
 interchangeable.
 
-Tracked as #11 (`spec-paper`) and #12 (`design-experiment`). Following steps 1–6 above is what
-closes them.
+Tracked together as #11: `spec-paper` and `design-experiment` turn on the same provenance
+question, so they are one decision. Following steps 1–6 above is what closes it.
