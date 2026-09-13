@@ -16,7 +16,6 @@ import argparse
 import os
 import glob
 import json
-import re
 import sys
 import importlib.util
 from pathlib import Path
@@ -28,6 +27,9 @@ SCHEMA = MACHINERY / "schema" / "claim-set-v0.schema.json"
 
 # The graph is a separate checkout after the split, so the claim files are not under MACHINERY.
 ROOT = Path(os.environ.get("CLAIM_GRAPHS_ROOT") or MACHINERY).expanduser()
+
+sys.path.insert(0, str(MACHINERY / "extract"))
+from claim_graphs import claimfile  # noqa: E402
 CLAIMS = Path(os.environ.get("CLAIM_GRAPHS_CORPUS_DIR") or (ROOT / "claims")).expanduser()
 
 # The relation names a claim file may carry as a top-level key, read from the machinery's
@@ -54,7 +56,7 @@ def frontmatter(path: Path) -> dict | None:
     text = path.read_text(encoding="utf-8")
     if not text.startswith("---"):
         return None
-    raw = re.sub(r"^\[\]$", "  []", text.split("---", 2)[1], flags=re.M)
+    raw = claimfile.loadable(text.split("---", 2)[1])
     try:
         return yaml.safe_load(raw) or {}
     except yaml.YAMLError as e:

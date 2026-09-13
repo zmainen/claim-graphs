@@ -52,6 +52,7 @@ import httpx
 import yaml
 
 from .config import Config
+from . import claimfile
 
 logger = logging.getLogger(__name__)
 
@@ -223,8 +224,7 @@ def _read_claim_file(path: Path) -> tuple[dict, str, str]:
         return {}, full, full
     fm_text = parts[1]
     body = parts[2].strip()
-    # Tolerate the canonical script's "[]" quirk: bare [] on next line after a key
-    fm_fixed = re.sub(r"^(\w[\w-]*):\n\[\]", r"\1: []", fm_text, flags=re.MULTILINE)
+    fm_fixed = claimfile.loadable(fm_text)
     try:
         fm = yaml.safe_load(fm_fixed) or {}
     except yaml.YAMLError as e:

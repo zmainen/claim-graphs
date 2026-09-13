@@ -24,12 +24,11 @@ import os
 
 import importlib.util
 import json
-import re
 from pathlib import Path
 
-import yaml
 
 from . import schema, vocabulary
+from . import claimfile
 
 CONTRACT_DIR = "contract"
 FILES = ("vocabulary.md", "schema-candidate.md", "schema-draft.md", "schema-review-patch.md")
@@ -74,12 +73,7 @@ def _claim(root: Path, paper: str, slug: str) -> dict:
     if not p.is_file():
         raise FileNotFoundError(
             f"contract example names {paper}/{slug}, which is not in {claims_dir(root)}")
-    m = re.match(r"^---\n(.*?)\n---", p.read_text(encoding="utf-8"), re.S)
-    # Some committed files put an empty list at column 0 on the line after its key, which
-    # strict YAML rejects; the same normalisation cli._load_claim_frontmatter applies.
-    body = re.sub(r"^([A-Za-z0-9_-]+):\n(\[\]|\{\})\s*$", r"\1: \2", m.group(1) if m else "",
-                  flags=re.M)
-    fm = yaml.safe_load(body) or {}
+    fm = claimfile.frontmatter(p) or {}
     text = " ".join(str(fm.get("claim") or "").split())
     return {"slug": slug, "paper": paper, "claim": text, "role": fm.get("role")}
 

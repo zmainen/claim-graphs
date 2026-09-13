@@ -56,11 +56,11 @@ from dataclasses import dataclass, field, asdict, replace
 from datetime import date
 from pathlib import Path
 
-import yaml
 
 from . import verdicts as vd
 from .agents import stream_text
 from .config import Config
+from . import claimfile
 
 logger = logging.getLogger(__name__)
 
@@ -79,19 +79,7 @@ class Claim:
 
 
 def _read_frontmatter(path: Path) -> dict:
-    text = path.read_text()
-    if not text.startswith("---"):
-        return {}
-    parts = text.split("---", 2)
-    if len(parts) < 3:
-        return {}
-    fm_text = parts[1]
-    # Tolerate the canonical script's quirk: bare `[]` on next line after a key
-    fm_fixed = re.sub(r"^(\w[\w-]*):\n\[\]", r"\1: []", fm_text, flags=re.MULTILINE)
-    try:
-        return yaml.safe_load(fm_fixed) or {}
-    except yaml.YAMLError:
-        return {}
+    return claimfile.frontmatter(path) or {}
 
 
 def load_claims(claim_dir: Path, source: str) -> list[Claim]:

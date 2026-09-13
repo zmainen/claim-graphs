@@ -25,7 +25,6 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import re
 import sys
 from collections import Counter
 
@@ -41,6 +40,12 @@ except ImportError:
 # named rather than inferred from where this script happens to live.
 MACHINERY = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ROOT = os.environ.get("CLAIM_GRAPHS_ROOT") or MACHINERY
+
+# The package lives beside the runners, in the machinery checkout — not under ROOT,
+# which after the split names the graph.
+sys.path.insert(0, os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "extract"))
+from claim_graphs import claimfile  # noqa: E402
 CLAIMS = os.path.join(ROOT, "claims")
 EXPORTS = os.path.join(ROOT, "exports")
 
@@ -48,15 +53,7 @@ from relations import EDGE_KEYS, GAPS, OPPOSES, SUPPORTS  # noqa: E402
 
 
 def frontmatter(path):
-    t = open(path, encoding="utf-8").read()
-    m = re.match(r"^---\n(.*?)\n---", t, re.S)
-    if not m:
-        return None
-    body = re.sub(r"^([A-Za-z0-9_-]+):\n(\[\]|\{\})\s*$", r"\1: \2", m.group(1), flags=re.M)
-    try:
-        return yaml.safe_load(body)
-    except yaml.YAMLError:
-        return None
+    return claimfile.frontmatter(path)
 
 
 def tree_relations(slug):
