@@ -30,8 +30,7 @@ def _args(**kw) -> Namespace:
 
 
 def _clear(env: dict) -> None:
-    for k in ("CLAIM_GRAPHS_ROOT", "ELIFE_CLAIM_TREES_ROOT",
-              "CLAIM_GRAPHS_CORPUS_DIR", "ELIFE_CORPUS_DIR"):
+    for k in ("CLAIM_GRAPHS_ROOT", "CLAIM_GRAPHS_CORPUS_DIR"):
         env.pop(k, None)
 
 
