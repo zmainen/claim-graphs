@@ -34,6 +34,7 @@ check:  ## Gates that are clean on main. A failure here is this change's fault.
 	cd extract && $(PYTHON) tests/test_verdicts.py
 	$(PYTHON) scripts/test_warrant.py
 	$(PYTHON) scripts/test_pipeline_versions.py
+	$(PYTHON) scripts/test_agent_mode.py
 
 test:  ## The whole suite under pytest
 	cd extract && $(PYTHON) -m pytest tests/ -q

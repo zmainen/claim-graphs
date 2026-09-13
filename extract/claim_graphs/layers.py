@@ -209,8 +209,11 @@ def reconcile_layer(paper: str, cfg: Config, *,
                                prepared.extraction_path, prepared.extraction_path_note,
                                prepared)
         draft.model = label
-        path = _write_json(run_file(paper, "reconciler.output.json", cfg),
-                           json.loads(draft.model_dump_json()))
+        payload = json.loads(draft.model_dump_json())
+        spent = answered_usage()
+        if spent:
+            payload["usage"] = spent
+        path = _write_json(run_file(paper, "reconciler.output.json", cfg), payload)
         return path, draft
     draft, usage = reconcile(
         read_reader("results", paper, cfg),

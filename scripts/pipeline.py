@@ -1281,6 +1281,191 @@ def _doi_of(paper: str) -> str | None:
     return m.group(1).strip("'\"") if m else None
 
 
+# ── agent mode ────────────────────────────────────────────────────────────────
+#
+# `run` assumes something will answer a model call when the command reaches a backend. An
+# agent answering the layers itself has no backend, and the three-step loop it must perform
+# instead — dump the prompt, answer it, record the answer — was written down in prose and
+# performed by hand. Prose is not a mechanism: the first end-to-end subagent run was eighteen
+# steps an operator read off a page, and every one of them was a chance to use the wrong path,
+# skip a layer, or answer two independent readers in one context.
+#
+# So the loop is a command. `agent` walks the same declaration `run` walks, executes every
+# layer that needs no model, and stops at the first that does — leaving the exact prompt on
+# disk and saying where to put the answer. Called again, it finds the answer, records it
+# through `run` (the same validation, the same ledger), and carries on. The caller repeats one
+# command until it says done, and never needs to know what the layers are.
+#
+# Exit codes are the protocol: 0 done, 10 a prompt is waiting, 11 an answer was refused.
+
+AGENT_WAITING, AGENT_REFUSED = 10, 11
+
+class _stdout_to_stderr:
+    """Everything a child says goes to stderr, so stdout carries only the JSON.
+
+    `--json` is a machine contract: the caller parses stdout. The layer commands underneath
+    print their own progress, and a subprocess writes to the file descriptor rather than to
+    `sys.stdout`, so redirecting the Python object is not enough — the descriptor itself has
+    to move. Without this the first agent-mode run emitted a prompt path and a progress line
+    in front of the JSON and nothing could parse it.
+    """
+
+    def __init__(self, active: bool):
+        self.active = active
+
+    def __enter__(self):
+        if self.active:
+            sys.stdout.flush()
+            self.saved = os.dup(1)
+            os.dup2(2, 1)
+        return self
+
+    def __exit__(self, *exc):
+        if self.active:
+            sys.stdout.flush()
+            os.dup2(self.saved, 1)
+            os.close(self.saved)
+        return False
+
+
+
+
+def agent_dir(paper: str) -> str:
+    """Where a prompt waiting for an answer lives — in the graph, beside its run."""
+    return os.path.join(ROOT, "runs", paper, "agent")
+
+
+def _agent_paths(paper: str, lid: str) -> tuple[str, str, str]:
+    d = agent_dir(paper)
+    return (os.path.join(d, f"{lid}.prompt.txt"),
+            os.path.join(d, f"{lid}.answer.json"),
+            os.path.join(d, f"{lid}.answer.recorded.json"))
+
+
+def _agent_args(paper: str, lid: str, **kw):
+    """A `run` invocation for one layer, with every flag cmd_run reads."""
+    base = dict(paper=paper, layer=lid, no_deps=True, dry_run=False, jobs=1,
+                note=None, tokens=None, dump_prompt=None, answer=None, by=None,
+                profile=None)
+    base.update(kw)
+    return argparse.Namespace(**base)
+
+
+def _agent_emit(payload: dict, as_json: bool) -> None:
+    if as_json:
+        print(json.dumps(payload, indent=2))
+        return
+    st = payload["status"]
+    if st == "done":
+        print(f"  done — {payload['layer']} is current for {payload['paper']}")
+        return
+    if st == "waiting":
+        print(f"\n  {payload['layer']}: needs an answer")
+        print(f"    question   {payload['question']}")
+        print(f"    prompt     {payload['prompt']}")
+        print(f"    answer to  {payload['answer']}")
+        print(f"    then       {payload['next']}")
+        if payload.get("independent"):
+            print(f"    NOTE       {payload['independent']}")
+        return
+    if st == "refused":
+        print(f"\n  {payload['layer']}: the answer was refused — rewrite "
+              f"{payload['answer']} and run the same command again")
+
+
+def cmd_agent(args) -> int:
+    """Drive the chain one layer at a time, stopping wherever a model has to answer."""
+    decl = load()
+    by_id = decl["by_id"]
+    if args.layer not in by_id:
+        print(f"error: no layer {args.layer!r}", file=sys.stderr)
+        return 2
+    if args.paper not in papers():
+        print(f"error: no paper {args.paper!r}", file=sys.stderr)
+        return 2
+
+    st = state(decl, [args.paper])[args.paper]
+    SATISFIED = (CURRENT, "unrecorded")
+    wanted, seen = [], set()
+
+    def walk(lid, target=False):
+        if lid in seen:
+            return
+        seen.add(lid)
+        if not target and st.get(lid, {}).get("state") in SATISFIED:
+            return
+        for dep in by_id[lid].get("needs") or []:
+            walk(dep)
+        wanted.append(lid)
+
+    walk(args.layer, target=True)
+
+    os.makedirs(agent_dir(args.paper), exist_ok=True)
+    profile = args.profile or "subagent"
+
+    for lid in wanted:
+        layer = by_id[lid]
+        if layer.get("scope") == "corpus" or not layer.get("command"):
+            continue
+        if lid != args.layer and st.get(lid, {}).get("state") in SATISFIED:
+            continue
+
+        prompt, answer, recorded = _agent_paths(args.paper, lid)
+
+        # A layer no model answers is just run.
+        if not layer.get("by_from"):
+            with _stdout_to_stderr(args.json):
+                rc = cmd_run(_agent_args(args.paper, lid, note=args.note,
+                                         profile=args.profile))
+            if rc:
+                return rc
+            continue
+
+        # One a model answers: record the answer if it is there, otherwise ask for it.
+        if os.path.isfile(answer) and os.path.getsize(answer):
+            with _stdout_to_stderr(args.json):
+                rc = cmd_run(_agent_args(args.paper, lid, answer=answer, by=args.by,
+                                         tokens=args.tokens, note=args.note,
+                                         profile=args.profile))
+            if rc:
+                _agent_emit({"status": "refused", "paper": args.paper, "layer": lid,
+                             "answer": answer}, args.json)
+                return AGENT_REFUSED
+            os.replace(answer, recorded)
+            continue
+
+        with _stdout_to_stderr(args.json):
+            rc = cmd_run(_agent_args(args.paper, lid, dump_prompt=prompt, profile=profile))
+        if rc:
+            return rc
+        me = os.path.relpath(os.path.abspath(__file__), os.getcwd())
+        payload = {
+            "status": "waiting",
+            "paper": args.paper,
+            "layer": lid,
+            "question": " ".join(str(layer.get("question", "")).split()),
+            "prompt": prompt,
+            "answer": answer,
+            "next": f"python3 {me} agent {args.paper} {args.layer}",
+            "remaining": [l for l in wanted[wanted.index(lid):] if by_id[l].get("by_from")],
+        }
+        if lid in READER_LAYERS:
+            payload["independent"] = (
+                "a reader: answer it in its own context, having seen no other reader's "
+                "prompt or answer — reconcile grades a claim by how many readers "
+                "independently surfaced it")
+        _agent_emit(payload, args.json)
+        return AGENT_WAITING
+
+    _agent_emit({"status": "done", "paper": args.paper, "layer": args.layer}, args.json)
+    return 0
+
+
+# The layers whose independence the confidence grade is computed from. Named here rather than
+# inferred, because "is a reader" is a fact about what reconcile does with them.
+READER_LAYERS = ("results-reader", "caption-reader", "structure-reader")
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -1293,6 +1478,18 @@ def main() -> int:
     s.add_argument("--json", action="store_true")
     s.add_argument("--fail-on-stale", action="store_true", help="exit non-zero if any cell is stale")
     s.set_defaults(fn=cmd_state)
+    a = sub.add_parser(
+        "agent", help="drive the chain, stopping wherever a model has to answer")
+    a.add_argument("paper")
+    a.add_argument("layer", help="the layer to reach, e.g. claim-tree")
+    a.add_argument("--by", help="who answers, recorded in the ledger")
+    a.add_argument("--tokens", type=int, metavar="N",
+                   help="what the answering session spent, for the record")
+    a.add_argument("--note", help="the changelog line for each ledger entry")
+    a.add_argument("--profile", help="model profile (default: subagent)")
+    a.add_argument("--json", action="store_true", help="emit the step as JSON")
+    a.set_defaults(fn=cmd_agent)
+
     r = sub.add_parser("run", help="run a layer for one paper, and its unmet dependencies")
     r.add_argument("paper")
     r.add_argument("layer")

@@ -241,48 +241,58 @@ def t_agent_runbook(root: Path, name: str) -> str:
 
     out += [
         "",
-        "**Mechanical layers** run as declared — nothing to answer:",
+        "### The loop",
+        "",
+        "One command, repeated until it says done. It walks this chain, runs everything that "
+        "needs no model, and stops at the first layer that does — leaving that layer's exact "
+        "prompt on disk and naming the file to write the answer to.",
         "",
         "```bash",
-    ]
-    for ly in chain:
-        if not ly.get("by_from") and ly.get("command"):
-            out.append(f"python3 scripts/pipeline.py run <paper> {ly['id']}")
-    out += ["```", "",
-            "**Model-answered layers** run as a three-step loop per layer. The prompt is not "
-            "described to you; it is handed to you as the bytes the backend would have "
-            "received.",
-            "",
-            "```bash",
-            "# 1. emit the exact (system, user) this layer would send, and stop",
-            "cd extract && python3 -m claim_graphs.cli <layer> --paper <paper> \\",
-            "    --profile subagent --dump-prompt /tmp/<layer>.prompt.txt",
-            "",
-            "# 2. answer it in a subagent that has been given that file and nothing else.",
-            "#    Return JSON only. Write it to /tmp/<layer>.answer.json",
-            "",
-            "# 3. record the answer through the runner, so it is validated and ledgered",
-            "python3 scripts/pipeline.py run <paper> <layer> --no-deps \\",
-            "    --answer /tmp/<layer>.answer.json --by \"<model that answered>\" --tokens <n>",
-            "```",
-            "",
-            "in this order:",
-            ""]
-    for ly in model_answered:
-        out.append(f"- `{ly['id']}` — {' '.join(str(ly.get('question', '')).split())}")
-    out += [
+        "python3 scripts/pipeline.py agent <paper> claim-tree --json \\",
+        "    --by \"<the model answering>\" --tokens <what that session spent>",
+        "```",
         "",
-        "Three things this loop buys that answering from memory does not. The prompt carries "
-        "the rendered contract, so the definitions you work from are the ones the corpus is "
-        "built on. `--answer` runs the same validation a backend reply gets, so a malformed "
-        "answer fails here rather than three layers downstream. And the ledger records the "
-        "inputs by content hash with `by` naming who answered, so the tree has a provenance "
-        "record identical in shape to one produced through an API.",
+        "It prints one JSON object and exits **10** while a prompt is waiting, **0** when the "
+        "target is current, and **11** when an answer was refused by the validator — in which "
+        "case rewrite the file it names and run the same command again.",
         "",
-        "**The three readers must not see each other's output.** `reconcile` grades a claim "
-        "`high`, `contested` or `single-source` by how many readers independently surfaced it. "
-        "Answer all three in one context and that grade measures nothing — it reports agreement "
-        "you manufactured. One subagent per reader, each given only its own dumped prompt.",
+        "```json",
+        "{ \"status\": \"waiting\", \"layer\": \"results-reader\",",
+        "  \"question\": \"What does the Results section assert?\",",
+        "  \"prompt\": \"runs/<paper>/agent/results-reader.prompt.txt\",",
+        "  \"answer\": \"runs/<paper>/agent/results-reader.answer.json\",",
+        "  \"next\":   \"python3 scripts/pipeline.py agent <paper> claim-tree\" }",
+        "```",
+        "",
+        "So the whole procedure is: run it, read `prompt`, answer it, write `answer`, run it "
+        "again. Do not work from the layer table above — it is here to say what is happening, "
+        "not to be executed. The command knows the order.",
+        "",
+        "**A layer marked `independent` must be answered in its own context**, having seen no "
+        "other layer's prompt or answer. `reconcile` grades a claim `high`, `contested` or "
+        "`single-source` by how many readers independently surfaced it; answer the three "
+        "readers in one context and that grade reports agreement you manufactured rather than "
+        "found. One subagent per reader.",
+        "",
+        "Three things the loop buys over answering from memory. The prompt carries the "
+        "rendered contract, so the definitions you work from are the ones the corpus is built "
+        "on. The answer goes through the same validation a backend reply gets, so a malformed "
+        "answer fails at the layer that produced it rather than three layers downstream. And "
+        "each step appends a ledger record naming every input by content hash, the machinery "
+        "that ran, who answered and what it cost — a provenance record identical in shape to "
+        "one produced through an API.",
+        "",
+        "### Running a single layer by hand",
+        "",
+        "The loop is the seam underneath, available per layer when you want one:",
+        "",
+        "```bash",
+        "cd extract && python3 -m claim_graphs.cli <layer> --paper <paper> \\",
+        "    --profile subagent --dump-prompt /tmp/<layer>.prompt.txt",
+        "# answer it, then",
+        "python3 scripts/pipeline.py run <paper> <layer> --no-deps \\",
+        "    --answer /tmp/<layer>.answer.json --by \"<model>\" --tokens <n>",
+        "```",
     ]
     return "\n".join(out)
 

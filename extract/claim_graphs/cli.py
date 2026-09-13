@@ -218,6 +218,9 @@ def cmd_edge_inference(args: argparse.Namespace) -> int:
         # the same answer and the claim-tree writer carries them into the paper's notes.
         unsupported = unsupported_from_raw(raw, slugs)
         payload = {"paper_slug": args.paper, "model": label, "edges": edges}
+        from .layers import answered_usage
+        if answered_usage():
+            payload["usage"] = answered_usage()
         if unsupported:
             payload["unsupported"] = unsupported
         path = _write_json(run_file(args.paper, "edge-inference.output.json", cfg), payload)
