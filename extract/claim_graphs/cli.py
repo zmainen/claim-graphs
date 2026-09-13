@@ -374,6 +374,20 @@ def cmd_warrant(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_verification_check(args: argparse.Namespace) -> int:
+    """Layer `verification-check` — does a re-run stand behind each claim, beside its warrant."""
+    from collections import Counter
+    from .layers import verification_check_layer
+
+    cfg = _cfg(args)
+    path, payload = verification_check_layer(args.paper, cfg)
+    by = Counter(c["check_verification"] for c in payload["checks"])
+    print(f"=== verification-check — {args.paper} ===")
+    print(f"  claims = {len(payload['checks'])}  ({dict(sorted(by.items()))})")
+    print(f"  written: {path}")
+    return 0
+
+
 def cmd_summaries(args: argparse.Namespace) -> int:
     """Layer `summaries` — the paper in three paragraphs, written from its claim graph."""
     from .layers import summaries_layer, summaries_request
@@ -1164,17 +1178,18 @@ def build_parser() -> argparse.ArgumentParser:
     p_warr = sub.add_parser(
         "warrant", help="Layer `warrant` — how well the tree supports each claim.",
         description=(
-            "Warrant is how well the tree supports a claim, distinct from what the paper says "
-            "(`confidence`) and how it stands toward it (`stance`). Given every claim with its "
-            "sentence, role, stance and a dossier — the outcomes on its predictions, the controls "
-            "that validate it, the alternatives it rules out, its reproductions and their "
-            "verification provenance, what it requires and is part of — return a warrant level per "
-            "claim (a prediction's confirmed/refuted/untested, an alternative's ruled-out/open, "
-            "everything else's strong/moderate/weak/contested), a one-line `why` citing the "
-            "dossier, and an `unsupported` flag. It writes `warrant:`, `warrant_why:` and "
-            "`warrant_from:` onto each claim file, leaving `epistemic` untouched. The prompt shows "
-            "the dossier, never the rule. `--dump-prompt` writes the exact request, `--answer` "
-            "feeds a reply back through the same validation."
+            "Warrant is how well the tree's argument supports a claim, distinct from what the "
+            "paper says (`confidence`) and how it stands toward it (`stance`). Checking — a "
+            "reproduction, a methods or statistics or citation check — is a separate later layer, "
+            "not this one. Given every claim with its sentence, role, stance and a dossier — the "
+            "outcomes on its predictions, the controls that validate it, the alternatives it "
+            "rules out, what supports/refutes it and what it requires and is part of — return a "
+            "warrant level per claim (a prediction's confirmed/refuted/untested, an alternative's "
+            "ruled-out/open, everything else's strong/moderate/weak/contested), a one-line `why` "
+            "citing the dossier, and an `unsupported` flag. It writes `warrant:`, `warrant_why:` "
+            "and `warrant_from:` onto each claim file, leaving `epistemic` untouched. The prompt "
+            "shows the dossier, never the rule. `--dump-prompt` writes the exact request, "
+            "`--answer` feeds a reply back through the same validation."
         ),
     )
     p_warr.add_argument("--paper", required=True, help="Paper slug.")
@@ -1182,6 +1197,23 @@ def build_parser() -> argparse.ArgumentParser:
     _add_common_args(p_warr)
     _add_model_args(p_warr)
     p_warr.set_defaults(func=cmd_warrant)
+
+    # ── verification-check ───────────────────────────────────────────────────
+    p_vc = sub.add_parser(
+        "verification-check",
+        help="Layer `verification-check` — does a re-run stand behind each claim?",
+        description=(
+            "The first checking layer, read beside the warrant, never over it. For each claim it "
+            "reads the reproduction records the claim carries and the verification provenance the "
+            "audited run wrote, and writes one verdict — reproduced, partial, mismatch (shown as "
+            "contested-by-verification), blocked, unattempted, or unrecorded — into "
+            "`check_verification:`, with `check_verification_from:` naming the record statuses and "
+            "provenance it read. Mechanical: no model, no prompt. It never touches `warrant:`."
+        ),
+    )
+    p_vc.add_argument("--paper", required=True, help="Paper slug.")
+    _add_common_args(p_vc)
+    p_vc.set_defaults(func=cmd_verification_check)
 
     # ── summaries ──────────────────────────────────────────────────────────
     p_sum = sub.add_parser(
