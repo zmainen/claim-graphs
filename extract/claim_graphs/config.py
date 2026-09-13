@@ -374,14 +374,29 @@ class Config:
                 or Path(__file__).resolve().parents[2])
         cfg.root = Path(root).expanduser().resolve()
 
-        # A flag beats the environment. An explicit --root used to lose to an exported
-        # CLAIM_GRAPHS_CORPUS_DIR, so any test or run that passed --root to isolate itself in a
-        # temporary tree silently wrote into whichever corpus the shell happened to name. That
-        # is not hypothetical: it put a claims/p/ from the writer test into this corpus and it
-        # was committed before anyone noticed. Order: --corpus-dir, then --root/claims, then
-        # the environment, then root.
+        # A named root beats the environment's corpus. An explicit --root used to lose to an
+        # exported CLAIM_GRAPHS_CORPUS_DIR, so any test or run that passed --root to isolate
+        # itself in a temporary tree silently wrote into whichever corpus the shell happened to
+        # name. That is not hypothetical: it put a claims/p/ from the writer test into this
+        # corpus and it was committed before anyone noticed.
+        #
+        # The first fix covered `--root` and not `CLAIM_GRAPHS_ROOT`, which is the same
+        # statement made in the environment instead of on the command line — and after the
+        # split that is the ordinary way to name a graph, since the corpus is a different
+        # checkout from the machinery. So a subagent run with the root in the environment and
+        # `CLAIM_GRAPHS_CORPUS_DIR` pointed at a corpus for the contract's worked examples wrote
+        # 140 claim files over that corpus, deleting 31 committed ones, while the runner
+        # recorded `out: []` because it looked for them under the root the declaration names.
+        # Two roots disagreeing is worse than either being wrong: the files moved and the
+        # provenance did not follow.
+        #
+        # `claims/` is what `claim-tree` declares it produces, and `produces:` resolves against
+        # the graph root. So the root wins however it was named, and the environment's corpus
+        # is what it is for — reading worked examples when no root says otherwise.
+        # Order: --corpus-dir, then <root>/claims when a root was named, then the environment.
+        root_named = bool(root_arg or os.environ.get("CLAIM_GRAPHS_ROOT"))
         corpus = (getattr(args, "corpus_dir", None)
-                  or (Path(root_arg).expanduser() / "claims" if root_arg else None)
+                  or (cfg.root / "claims" if root_named else None)
                   or os.environ.get("CLAIM_GRAPHS_CORPUS_DIR"))
         cfg.corpus_dir = (Path(corpus).expanduser().resolve() if corpus
                           else cfg.root / "claims")
