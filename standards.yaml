@@ -1,0 +1,199 @@
+# Standards mappings — the one table, and the one the exporters read.
+#
+# These lived in three Python dicts and two prose tables in docs/schema-mapping/, and the prose
+# had already gone stale: cito-mapping.md still documents `dissociates-with` as
+# `cito:disagreesWith`, which the #125 ruling removed and formats_report.py now asserts is gone.
+# A mapping nobody can check against what is exported drifts, so this file *is* what is exported
+# and the prose is generated from it.
+#
+# Where a standard has no term for a relation, this file says so rather than forcing one. That is
+# the point of keeping it: `mira: ~` with a note is information, and silently exporting the
+# nearest predicate is not. The gap reports read these notes.
+#
+# Generated once from the code that held the mappings (export_mira.RELATION_DEFS, oxa.EDGE_MAP,
+# export_discourse_graphs.RELATION_TO_DG) so it is exactly faithful to what the corpus already
+# holds; from here it is edited by hand and the exporters follow it.
+
+contexts:
+  mira:     https://purl.org/mira-science/mira.jsonld
+  cito:     http://purl.org/spar/cito/
+  dg:       https://discoursegraphs.com/ns#
+  claimrel: https://w3id.org/claim-relations#
+  prov:     http://www.w3.org/ns/prov#
+  schema:   https://schema.org/
+
+# ── relations ────────────────────────────────────────────────────────────────
+#
+# mira.predicate  the MIRA property, or ~ when MIRA has none and the edge hangs at
+#                 AbstractRelationDef instead of being forced under supports/opposes
+# cito            the CiTO IRI, or a claimrel: extension declared as a CiTO subproperty
+# dg              one of DG's four: supports, opposedBy, addresses, interpretedAs
+relations:
+  confirms:
+    mira:
+      predicate: mira:supports
+      domain: mira:Evidence
+      range: mira:Claim
+      note: "The source evidence confirms the destination claim."
+    cito: ~
+    dg: ~
+  contradicts:
+    mira:
+      predicate: mira:opposes
+      domain: mira:Claim
+      range: mira:Claim
+      note: "The source claim contradicts the destination claim."
+    cito: claimrel:contradicts
+    dg: opposedBy
+  derived-from:
+    mira:
+      predicate: ~
+      domain: mira:Claim
+      range: mira:Claim
+      note: "The source claim was derived from the destination claim; the inverse of entails."
+    cito: cito:citesAsSourceDocument
+    dg: supports
+  dissociates-with:
+    mira:
+      predicate: ~
+      domain: mira:Claim
+      range: mira:Claim
+      note: "The source and destination jointly establish a dissociation — a contrast between two results, neither bearing on the other's truth. MIRA has no predicate for a contrast, so like the deductive relations it hangs at AbstractRelationDef and the gap report names it."
+    cito: ~
+    dg: ~
+  enables-method:
+    mira:
+      predicate: ~
+      domain: mira:Evidence
+      range: mira:Protocol
+      note: "The source result makes the destination method possible."
+    cito: cito:usesMethodIn
+    dg: supports
+  entails:
+    mira:
+      predicate: ~
+      domain: mira:Claim
+      range: mira:Claim
+      note: "The source claim logically entails the destination claim: the deductive step from a hypothesis to a prediction it commits to."
+    cito: claimrel:entails
+    dg: supports
+  extends:
+    mira:
+      predicate: mira:supports
+      domain: mira:Claim
+      range: mira:Claim
+      note: "The source claim extends the destination claim to new conditions."
+    cito: cito:extends
+    dg: supports
+  in-tension-with:
+    mira:
+      predicate: mira:opposes
+      domain: mira:Claim
+      range: mira:Claim
+      note: "The source and destination claims are both asserted yet pull a shared implication in opposite directions."
+    cito: claimrel:contradicts
+    dg: opposedBy
+  interprets:
+    mira:
+      predicate: ~
+      domain: mira:Claim
+      range: mira:Evidence
+      note: "The source claim offers a theoretical reading of the destination result."
+    cito: claimrel:interprets
+    dg: interpretedAs
+  opposes:
+    mira:
+      predicate: mira:opposes
+      domain: mira:Claim
+      range: mira:Claim
+      note: "The source claim stands against the destination claim."
+    cito: ~
+    dg: ~
+  part-of:
+    mira:
+      predicate: ~
+      domain: mira:Claim
+      range: mira:Claim
+      note: "The source claim is a component of the destination — one comparison, condition, measure or study of a proposition the destination states whole. MIRA has no predicate for composition, so like the deductive relations it hangs at AbstractRelationDef and the gap report names it."
+    cito: ~
+    dg: ~
+  predicts:
+    mira:
+      predicate: mira:supports
+      domain: mira:Claim
+      range: mira:Evidence
+      note: "The source claim predicts the destination result; inverse of confirms."
+    cito: ~
+    dg: ~
+  qualifies:
+    mira:
+      predicate: ~
+      domain: mira:Claim
+      range: mira:Claim
+      note: "The source narrows the destination claim's applicability."
+    cito: cito:qualifies
+    dg: ~
+  refutes:
+    mira:
+      predicate: mira:opposes
+      domain: mira:Evidence
+      range: mira:Claim
+      note: "The source evidence is incompatible with the destination claim."
+    cito: ~
+    dg: ~
+  replicates:
+    mira:
+      predicate: mira:supports
+      domain: mira:Evidence
+      range: mira:Claim
+      note: "The source evidence independently replicates the destination claim."
+    cito: claimrel:replicates
+    dg: supports
+  requires:
+    mira:
+      predicate: ~
+      domain: mira:Claim
+      range: mira:Claim
+      note: "The source claim depends on the destination holding. If the destination fails, the source is undermined."
+    cito: claimrel:requires
+    dg: ~
+  rules-out:
+    mira:
+      predicate: mira:opposes
+      domain: mira:Evidence
+      range: mira:Claim
+      note: "The source evidence eliminates the destination claim as viable."
+    cito: claimrel:rulesOut
+    dg: opposedBy
+  scopes:
+    mira:
+      predicate: ~
+      domain: mira:Claim
+      range: mira:Claim
+      note: "The source states a boundary condition governing where the destination claim is valid. Neither supports nor opposes."
+    cito: claimrel:scopes
+    dg: ~
+  supports:
+    mira:
+      predicate: mira:supports
+      domain: mira:Claim
+      range: mira:Claim
+      note: "The source claim provides support for the destination claim."
+    cito: cito:supports
+    dg: supports
+  tests:
+    mira:
+      predicate: ~
+      domain: mira:Evidence
+      range: mira:Claim
+      note: "The source evidence was gathered to test the destination claim. Neither supports nor opposes: it records that a test was run, not how it came out."
+    cito: claimrel:tests
+    dg: supports
+  validates:
+    mira:
+      predicate: mira:supports
+      domain: mira:Evidence
+      range: mira:Claim
+      note: "The source evidence validates the destination claim."
+    cito: ~
+    dg: ~

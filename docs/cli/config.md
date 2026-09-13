@@ -1,0 +1,94 @@
+# Configuration
+
+Every flag and environment variable, in one place. Resolution order is CLI argument, then
+environment variable, then default.
+
+## `scripts/pipeline.py`
+
+Needs only PyYAML. It holds no credentials and calls no model — it reads the declaration, reads
+the ledger, and shells out to the commands the declaration names.
+
+| Subcommand | Arguments |
+|:-----------|:----------|
+| `graph` | — |
+| `state` | `--json`, `--fail-on-stale` |
+| `run` | `<paper> <layer>`, `--dry-run`, `--no-deps`, `--note TEXT` |
+| `approve` | `<paper> <layer>`, `--by NAME` (required), `--v N`, `--note TEXT` |
+| `backfill` | `--force` |
+
+Paths come from the repository it lives in. There is nothing to configure.
+
+## `claim-graphs`
+
+### Shared by every layer runner
+
+| Flag | Env | Default | Purpose |
+|:-----|:----|:--------|:--------|
+| `--paper` | — | required | The paper slug |
+| `--root` | `CLAIM_GRAPHS_ROOT` | the directory the package ships in | The corpus repository, which `pipeline/layers.yaml` resolves its paths against |
+| `--corpus-dir` | `CLAIM_GRAPHS_CORPUS_DIR` | `<root>/claims` | Where claim files are read and written |
+| `--prompts-dir` | — | package-local `prompts/` | Override the prompt directory |
+| `--prompt-variant` | — | `default` | A named directory under `prompts/<variant>/` |
+| `--backend` | `CLAIM_GRAPHS_BACKEND` | `vertex` | `vertex`, `anthropic`, or anything litellm routes |
+| `--api-key` | that backend's key variable | — | Not needed for Vertex |
+| `-v`, `--verbose` | — | off | Per-chunk DEBUG logging |
+
+### Model routing
+
+Carried by every runner that calls a model.
+
+| Flag | Env | Default |
+|:-----|:----|:--------|
+| `--model-results` | `CLAIM_GRAPHS_MODEL_RESULTS` | `claude-sonnet-4-6` |
+| `--model-caption` | `CLAIM_GRAPHS_MODEL_CAPTION` | `claude-sonnet-4-6` |
+| `--model-structure` | `CLAIM_GRAPHS_MODEL_STRUCTURE` | `claude-sonnet-4-6` |
+| `--model-reconcile` | `CLAIM_GRAPHS_MODEL_RECONCILE` | `claude-opus-4-6` |
+| `--vertex-project` | `VERTEX_PROJECT_ID` | none — required |
+| `--vertex-region` | `VERTEX_REGION` | `europe-west1` |
+
+`--model-reconcile` covers reconciliation, external review and edge inference — the three steps
+that reason over the whole draft rather than over a slice.
+
+### Per-subcommand
+
+| Subcommand | Flags beyond the shared set |
+|:-----------|:----------------------------|
+| `prepare` | `--doi`, `--pdf-path`, `--input-format {auto,jats,pdf}` |
+| `reconcile` | `--reconcile-strategy {confidence-tagged,union,intersection-only,majority-vote}` |
+| `edge-inference` | `--dump-prompt PATH`, `--edges-json PATH` |
+| `write` | `--format {yaml,oxa}` |
+| `verify-refs` | `--paper` optional (omit to sweep), `--dry-run` |
+| `coverage` | `--claims-dir`, `--include-methods`, `--mapping`, `--json`, `--fail-on-orphans` |
+| `mark` | `--claims-dir`, `--mapping`, `--include-methods`, `--author`, `-o/--out` |
+| `evaluate` | `--reference-dir`, `--work-dir`, `--paper`/`--papers`/`--all`, `--no-external-review`, `--skip-existing` |
+
+### Backends
+
+`vertex` and `anthropic` call the Anthropic SDK directly. Every other value is routed through
+litellm and needs no code of its own, reading its conventional key from the environment:
+
+| `--backend` | Key |
+|:------------|:----|
+| `anthropic` | `ANTHROPIC_API_KEY` |
+| `openrouter` | `OPENROUTER_API_KEY` |
+| `openai` | `OPENAI_API_KEY` |
+| `google` | `GEMINI_API_KEY` |
+| `groq` | `GROQ_API_KEY` |
+| `together` | `TOGETHER_API_KEY` |
+| `deepseek` | `DEEPSEEK_API_KEY` |
+
+These defaults describe what a run started today would use. They are not a record of what
+produced any particular claim file — for that, read the `by` field of the relevant entry in
+`runs/<paper>/ledger.jsonl`, which names the model that answered each layer.
+
+## What is not configurable
+
+**Where a layer writes.** That comes from `pipeline/layers.yaml`. `--root` moves the whole
+tree; nothing moves one layer's output within it.
+
+**Whether a run is recorded.** `scripts/pipeline.py run` always appends to the ledger. There
+is no quiet mode.
+
+**The review gate.** There isn't one. `--review-mode` is gone; see
+[coming from the old CLI](/claim-graphs/docs/#coming-from-the-old-cli) for what replaced
+each of its settings.
