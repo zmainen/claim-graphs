@@ -6,7 +6,7 @@
 > workflow runs the same structure forward, and has no layer, no declared prompt, no ledger and
 > no gate. That asymmetry is a gap in the machinery, not a property of the work — the forward
 > direction is the stronger claim the format makes, and leaving it as prose is what lets it rot.
-> `docs/extending.md` says how a workflow becomes a layer; this one is tracked as #4.
+> `docs/extending.md` says how a workflow becomes a layer; this one is tracked as #12.
 > Until then, author the claims by hand in the format above and run the gate on the result.
 
 Before data. The graph you build here is a design document and, if you fix it before running, a
