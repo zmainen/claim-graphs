@@ -38,13 +38,14 @@ Run the commands below from this repository. A layer's `reads:` — its prompts,
 | 6 | `external-review` | What structure did the three readers systematically miss? | a model |
 | 7 | `edge-inference` | Which claims depend on which? | a model |
 | 8 | `claim-tree` | What does this paper assert, and how do its assertions depend on each other? | mechanically, no model call |
+| 9 | `stance` | What does this paper rule out, and what does it merely entertain? | a model |
 
 ### The loop
 
 One command, repeated until it says done. It walks this chain, runs everything that needs no model, and stops at the first layer that does — leaving that layer's exact prompt on disk and naming the file to write the answer to.
 
 ```bash
-python3 scripts/pipeline.py agent <paper> claim-tree --json \
+python3 scripts/pipeline.py agent <paper> stance --json \
     --by "<the model answering>" --tokens <what that session spent>
 ```
 
@@ -55,7 +56,7 @@ It prints one JSON object and exits **10** while a prompt is waiting, **0** when
   "question": "What does the Results section assert?",
   "prompt": "runs/<paper>/agent/results-reader.prompt.txt",
   "answer": "runs/<paper>/agent/results-reader.answer.json",
-  "next":   "python3 scripts/pipeline.py agent <paper> claim-tree" }
+  "next":   "python3 scripts/pipeline.py agent <paper> stance" }
 ```
 
 So the whole procedure is: run it, read `prompt`, answer it, write `answer`, run it again. Do not work from the layer table above — it is here to say what is happening, not to be executed. The command knows the order.

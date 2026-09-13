@@ -99,7 +99,7 @@ def test_every_enforced_rule_reaches_the_agent():
 
 def test_runbook_names_the_declared_chain():
     """The sequence is the declaration's, not a remembered one."""
-    declared = [ly["id"] for ly in skill._chain(REPO, "claim-tree")]
+    declared = [ly["id"] for ly in skill._chain(REPO, skill.INDUCTION_TARGET)]
     text = _committed("workflows/analyze-paper.md")
     for lid in declared:
         assert f"`{lid}`" in text, f"{lid} is in the claim-tree chain and not in the runbook"
@@ -108,6 +108,28 @@ def test_runbook_names_the_declared_chain():
     import re
     named = set(re.findall(r"^\| \d+ \| `([a-z-]+)`", text, re.M))
     assert named <= ids, f"runbook names layers that do not exist: {named - ids}"
+
+
+def test_the_runbook_drives_past_claim_tree_to_the_alternatives():
+    """`claim-tree` is not the end of induction, and the runbook must not stop there.
+
+    Driving to `claim-tree` produces a tree that looks finished and carries no eliminative
+    structure: the first end-to-end agent run returned 139 claims, 27 controls and zero
+    `rules-out`, because `stance` — which raises the rivals and attaches those edges — sits
+    outside that chain. Every consumer of a finished tree already declares it: `mira-export`,
+    `oxa-export` and `warrant` all name `stance` in `needs`.
+    """
+    import yaml as _yaml
+    decl = _yaml.safe_load((REPO / "pipeline" / "layers.yaml").read_text(encoding="utf-8"))
+    by_id = {ly["id"]: ly for ly in decl["layers"]}
+    chain = [ly["id"] for ly in skill._chain(REPO, skill.INDUCTION_TARGET)]
+    assert "claim-tree" in chain, "the induction target must still build the tree"
+    assert "stance" in chain, "the runbook must reach the layer that authors the alternatives"
+    # And the target is one the finished-tree consumers agree on.
+    for consumer in ("mira-export", "oxa-export"):
+        assert skill.INDUCTION_TARGET in (by_id[consumer].get("needs") or []), (
+            f"{consumer} does not require {skill.INDUCTION_TARGET}; if the target moved, "
+            f"check it is still what a finished tree means")
 
 
 def test_closed_value_sets_agree_with_the_converter():
