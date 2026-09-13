@@ -1,8 +1,8 @@
 # Reading the paper better
 
 **Status:** proposed
-**Issue:** [#56](https://github.com/zmainen/claim-graphs/issues/56)
-**Frames:** [#18](https://github.com/zmainen/claim-graphs/issues/18) · [#19](https://github.com/zmainen/claim-graphs/issues/19) · [#28](https://github.com/zmainen/claim-graphs/issues/28) · [#37](https://github.com/zmainen/claim-graphs/issues/37)
+**Issue:** [#56](https://github.com/zmainen/elife-claim-trees/issues/56)
+**Frames:** [#18](https://github.com/zmainen/elife-claim-trees/issues/18) · [#19](https://github.com/zmainen/elife-claim-trees/issues/19) · [#28](https://github.com/zmainen/elife-claim-trees/issues/28) · [#37](https://github.com/zmainen/elife-claim-trees/issues/37)
 **Depends on:** `pipeline/layers.yaml`, `extract/prompts/*`, `extract/claim_graphs/{prepare,agents,reconcile,edges,external_review,evaluate}.py`
 
 The induction layers are seven model calls: three readers, a reconciler, a reviewer, an edge

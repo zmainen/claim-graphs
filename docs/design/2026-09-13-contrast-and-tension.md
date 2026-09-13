@@ -1,8 +1,8 @@
 # Contrast and tension: two relations where the corpus had one
 
 **Status:** proposed
-**Issue:** [#125](https://github.com/zmainen/claim-graphs/issues/125)
-**Frames:** [#19](https://github.com/zmainen/claim-graphs/issues/19) · [#31](https://github.com/zmainen/claim-graphs/issues/31)
+**Issue:** [#125](https://github.com/zmainen/elife-claim-trees/issues/125)
+**Frames:** [#19](https://github.com/zmainen/elife-claim-trees/issues/19) · [#31](https://github.com/zmainen/elife-claim-trees/issues/31)
 **Depends on:** `scripts/relations.py`, `scripts/export_mira.py`, `extract/claim_graphs/oxa.py`, `scripts/check_relations.py`, the archived trees under `runs/*/claim-tree.v1/`
 
 The ruling on #19 was that `dissociates-with` has been used for two different things, a neutral

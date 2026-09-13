@@ -1,8 +1,8 @@
 # Kinds of decision
 
 **Status:** accepted (procedure v1, 2026-09-13)
-**Issue:** [#108](https://github.com/zmainen/claim-graphs/issues/108)
-**Frames:** [#31](https://github.com/zmainen/claim-graphs/issues/31) · [#56](https://github.com/zmainen/claim-graphs/issues/56) · [#82](https://github.com/zmainen/claim-graphs/issues/82)
+**Issue:** [#108](https://github.com/zmainen/elife-claim-trees/issues/108)
+**Frames:** [#31](https://github.com/zmainen/elife-claim-trees/issues/31) · [#56](https://github.com/zmainen/elife-claim-trees/issues/56) · [#82](https://github.com/zmainen/elife-claim-trees/issues/82)
 **Depends on:** `docs/design/2026-09-11-layers-as-pipeline.html` (approval as an operation on a version; a layer as a proposal)
 
 Four different things have been called "review" in this repository, and a badge on the site
@@ -139,7 +139,7 @@ Consequences for the current tracker, applied with this note:
 
 Two governance questions the proposal left open are settled by default in accepting it as
 procedure v1, and either can be reopened as a scheme ruling under
-[#31](https://github.com/zmainen/claim-graphs/issues/31) once the corpus grows to need more.
+[#31](https://github.com/zmainen/elife-claim-trees/issues/31) once the corpus grows to need more.
 
 Whether accepting a declaration needs one approver or two: one. The record can already hold
 several approvals of a declaration version, so requiring a second is a change the ledger
