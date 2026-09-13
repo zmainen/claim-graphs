@@ -37,7 +37,10 @@ try:
 except ImportError:
     sys.exit("PyYAML required:  pip install pyyaml")
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# The graph is a separate checkout from the machinery, so the root a layer reads and writes is
+# named rather than inferred from where this script happens to live.
+MACHINERY = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT = os.environ.get("CLAIM_GRAPHS_ROOT") or MACHINERY
 CLAIMS = os.path.join(ROOT, "claims")
 EXPORTS = os.path.join(ROOT, "exports")
 

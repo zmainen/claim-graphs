@@ -1,0 +1,23 @@
+{
+  "layer": "evaluation",
+  "papers": [],
+  "profiles": [
+    "frontier",
+    "standard",
+    "open",
+    "subagent"
+  ],
+  "percent_metrics": [
+    "recovery",
+    "precision",
+    "role",
+    "panel",
+    "edge_recovery"
+  ],
+  "rows": [],
+  "n_papers": 0,
+  "n_rows": 0,
+  "n_scored": 0,
+  "n_not_run": 0,
+  "best_recovery": 0
+}
