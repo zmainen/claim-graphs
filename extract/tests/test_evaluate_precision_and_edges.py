@@ -171,7 +171,8 @@ def test_edge_recovery_basic():
         _write_claim(cli_dir, "c2", "empirical")
         _write_claim(cli_dir, "c3", "empirical")
 
-        n_ref, n_rec, n_extra = _score_edges(matches, ref_claims, cli_claims, ref_dir, cli_dir)
+        n_ref, n_rec, n_extra, _by_rel = _score_edges(
+            matches, ref_claims, cli_claims, ref_dir, cli_dir)
 
     assert n_ref == 1      # r1-tests->r2 is the only ref edge between matched pairs
     assert n_rec == 1      # c1-tests->c2 recovers it
@@ -190,7 +191,8 @@ def test_edge_recovery_no_matched_pairs():
         matches: list[dict] = []
         ref_claims = load_claims(ref_dir, "ref")
         cli_claims = load_claims(cli_dir, "cli")
-        n_ref, n_rec, n_extra = _score_edges(matches, ref_claims, cli_claims, ref_dir, cli_dir)
+        n_ref, n_rec, n_extra, _by_rel = _score_edges(
+            matches, ref_claims, cli_claims, ref_dir, cli_dir)
     assert n_ref == 0 and n_rec == 0 and n_extra == 0
 
 

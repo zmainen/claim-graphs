@@ -419,6 +419,11 @@ class PaperScorecard:
     n_edge_recovered: int = 0
     n_cli_extra_edges: int = 0
 
+    # Recovery per relation: {relation: [recovered, total]}. One number cannot say whether the
+    # deductive spine survived and the scope web did not, which is the distinction that tells
+    # you whether the argument was reconstructed or only its findings.
+    edge_recovery_by_relation: dict = field(default_factory=dict)
+
     # Per-role confusion over matched pairs: {(ref_role, cli_role): count}.
     role_confusion: dict = field(default_factory=dict)
 
@@ -455,18 +460,57 @@ class PaperScorecard:
                 if self.n_ref_edges_on_matched else 0.0)
 
 
+def _part_families(edges: list[tuple[str, str, str]]) -> dict[str, frozenset[str]]:
+    """For each claim, the claims that state the same proposition at a different grain.
+
+    A tree has two grains (`docs/design/2026-09-11-parts.md`): a claim can state a whole that
+    several narrower claims each partly establish, joined by `part-of` from component to whole.
+    Two extractions of one paper routinely choose different grains — a curated tree folds the
+    components in, a chain returns each comparison as the prose states it — and an edge the
+    reference drew to the whole is then drawn in the CLI tree to one of the components.
+
+    Scoring those as different edges measures the grain, not the argument. The family is the
+    transitive closure of `part-of` in both directions, so a reference edge counts as recovered
+    when it lands anywhere in the family of each endpoint.
+    """
+    adj: dict[str, set[str]] = {}
+    for src, tgt, rel in edges:
+        if rel != "part-of":
+            continue
+        adj.setdefault(src, set()).add(tgt)
+        adj.setdefault(tgt, set()).add(src)
+
+    families: dict[str, frozenset[str]] = {}
+    for slug in adj:
+        seen, stack = {slug}, [slug]
+        while stack:
+            for nxt in adj.get(stack.pop(), ()):  # noqa: B007
+                if nxt not in seen:
+                    seen.add(nxt)
+                    stack.append(nxt)
+        families[slug] = frozenset(seen)
+    return families
+
+
 def _score_edges(
     matches: list[dict],
     ref_claims: list[Claim],
     cli_claims: list[Claim],
     ref_dir: Path,
     cli_dir: Path,
-) -> tuple[int, int, int]:
+) -> tuple[int, int, int, dict[str, tuple[int, int]]]:
     """Count reference edges on matched pairs that are recovered in the CLI tree.
 
-    Returns (n_ref_edges_on_matched, n_recovered, n_cli_extra).
+    Recovery is judged up to grain: an endpoint stands for its `part-of` family, so an edge the
+    reference drew to a whole is recovered by the same edge drawn to any component of it, and
+    vice versa. Without that the score measures how the two trees split their claims. It was
+    measured: on `wengert-2026-kcnc1` the strict count was 21 of 105.
+
+    Returns (n_ref_edges_on_matched, n_recovered, n_cli_extra, by_relation), where by_relation
+    maps a relation to (recovered, total) so a failure can be read per relation rather than as
+    one number — `requires` failing and `supports` succeeding is a different fault from the
+    reverse.
     """
-    # Build ref→cli and cli→ref maps over matched pairs.
     ref_to_cli: dict[str, str] = {}
     cli_to_ref: dict[str, str] = {}
     ref_slugs = {c.slug for c in ref_claims}
@@ -481,33 +525,54 @@ def _score_edges(
             cli_to_ref[cs] = rs
 
     if not ref_to_cli:
-        return 0, 0, 0
+        return 0, 0, 0, {}
 
     ref_edges = load_edges(ref_dir)
     cli_edges = load_edges(cli_dir)
 
-    # Reference edges where both endpoints are in the matched set.
+    ref_fam = _part_families(ref_edges)
+    cli_fam = _part_families(cli_edges)
+
+    def family(slug: str, fams: dict[str, frozenset[str]]) -> frozenset[str]:
+        return fams.get(slug, frozenset({slug}))
+
+    # Every CLI edge, indexed by relation, so a family lookup is a set test.
+    cli_by_rel: dict[str, set[tuple[str, str]]] = {}
+    for src, tgt, rel in cli_edges:
+        cli_by_rel.setdefault(rel, set()).add((src, tgt))
+
     ref_edge_set: set[tuple[str, str, str]] = set()
     for src, tgt, rel in ref_edges:
         if src in ref_to_cli and tgt in ref_to_cli:
             ref_edge_set.add((src, tgt, rel))
 
-    # Map to CLI slugs for recovery check.
-    ref_mapped: set[tuple[str, str, str]] = {
-        (ref_to_cli[src], ref_to_cli[tgt], rel)
-        for src, tgt, rel in ref_edge_set
+    by_relation: dict[str, list[int]] = {}
+    recovered_pairs: set[tuple[str, str, str]] = set()
+    n_recovered = 0
+    for src, tgt, rel in ref_edge_set:
+        # The reference endpoint stands for its own family too: a curated whole may itself be
+        # one component of something the chain states whole.
+        srcs = {c for r in family(src, ref_fam) if (c := ref_to_cli.get(r))}
+        tgts = {c for r in family(tgt, ref_fam) if (c := ref_to_cli.get(r))}
+        cand_src = {x for c in srcs for x in family(c, cli_fam)}
+        cand_tgt = {x for c in tgts for x in family(c, cli_fam)}
+        hit = next((p for p in cli_by_rel.get(rel, ()) 
+                    if p[0] in cand_src and p[1] in cand_tgt), None)
+        slot = by_relation.setdefault(rel, [0, 0])
+        slot[1] += 1
+        if hit:
+            slot[0] += 1
+            n_recovered += 1
+            recovered_pairs.add((hit[0], hit[1], rel))
+
+    # CLI edges on matched pairs that answer to no reference edge.
+    cli_edge_set: set[tuple[str, str, str]] = {
+        (src, tgt, rel) for src, tgt, rel in cli_edges
+        if src in cli_to_ref and tgt in cli_to_ref
     }
-
-    # CLI edges where both endpoints are in matched CLI slugs.
-    cli_edge_set: set[tuple[str, str, str]] = set()
-    for src, tgt, rel in cli_edges:
-        if src in cli_to_ref and tgt in cli_to_ref:
-            cli_edge_set.add((src, tgt, rel))
-
-    n_ref_on_matched = len(ref_edge_set)
-    n_recovered = len(ref_mapped & cli_edge_set)
-    n_extra = len(cli_edge_set - ref_mapped)
-    return n_ref_on_matched, n_recovered, n_extra
+    n_extra = len(cli_edge_set - recovered_pairs)
+    return (len(ref_edge_set), n_recovered, n_extra,
+            {k: (v[0], v[1]) for k, v in by_relation.items()})
 
 
 def _score_role_confusion(
@@ -684,11 +749,12 @@ def _build_scorecard(
 
     # Edge scoring.
     try:
-        n_ref_edges, n_edge_rec, n_extra = _score_edges(
+        n_ref_edges, n_edge_rec, n_extra, edge_by_rel = _score_edges(
             matches, ref_claims, cli_claims, ref_dir, cli_dir_path)
     except Exception as e:
         logger.warning("edge scoring failed: %s", e)
         n_ref_edges = n_edge_rec = n_extra = 0
+        edge_by_rel = {}
 
     # Role confusion.
     try:
@@ -715,6 +781,7 @@ def _build_scorecard(
         n_ref_edges_on_matched=n_ref_edges,
         n_edge_recovered=n_edge_rec,
         n_cli_extra_edges=n_extra,
+        edge_recovery_by_relation=edge_by_rel,
         role_confusion=role_confusion,
         reference=reference,
     )
