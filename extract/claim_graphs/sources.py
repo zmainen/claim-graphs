@@ -6,10 +6,12 @@ and says what format it is in. eLife lives here and nowhere else, which is what 
 machinery be published without the corpus (docs/design/2026-09-13-the-split.md § 4).
 
 A source is registered in `BUILT_IN` or discovered through the `claim_graphs.sources` entry
-point group, so an adapter for another publisher ships in its own package:
+point group, so an adapter for another publisher ships in its own package. The target is the
+class, in the distribution that ships it — the example is hypothetical on purpose, because the
+built-ins are registered through `BUILT_IN` and would teach the mechanism wrong:
 
     [project.entry-points."claim_graphs.sources"]
-    elife-jats = "elife_claim_trees.sources:ElifeSource"
+    biorxiv = "claim_graphs_biorxiv.sources:BiorxivSource"
 
 `Resolved.sha256` is not decoration. The pipeline decides staleness by hashing what a layer
 read (`runs/<paper>/ledger.jsonl`), so a source that cached by URL alone — returning a stale
