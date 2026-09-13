@@ -407,6 +407,11 @@ class PaperScorecard:
     n_edge_recovered: int = 0
     n_cli_extra_edges: int = 0
 
+    # Recovery per relation: {relation: [recovered, total]}. One number cannot say whether the
+    # deductive spine survived and the scope web did not, which is the distinction that tells
+    # you whether the argument was reconstructed or only its findings.
+    edge_recovery_by_relation: dict = field(default_factory=dict)
+
     # Per-role confusion over matched pairs: {(ref_role, cli_role): count}.
     role_confusion: dict = field(default_factory=dict)
 
@@ -443,18 +448,89 @@ class PaperScorecard:
                 if self.n_ref_edges_on_matched else 0.0)
 
 
+# Roles a scope claim bounds. `scopes: ["*"]` means every one of them in the paper, so this is
+# what the wildcard expands to — and what "covers everything" means when the linter asks whether
+# an enumeration is a hand-written `"*"` (docs/design/2026-09-14-scope-representation.md).
+SCOPED_ROLES = ("empirical", "control", "synthesis", "interpretation")
+
+
+def _bounded_claims(edges: list[tuple[str, str, str]], claims: list[Claim]) -> set[str]:
+    """Which claims a tree says are bounded, with `"*"` expanded to the eligible set.
+
+    Scope is scored by coverage rather than by pair, and the two give very different answers.
+    A pairwise test asks "does the same scope claim bound the same result", which is a question
+    about which node carries the bound — and two honest trees disagree about that routinely: the
+    curated `wengert-2026-kcnc1` bounds the paper from one envelope claim, the induced tree
+    bounds each result from whichever of four preparations produced it. Scored pairwise that is
+    0 of 17; scored as coverage it is 4 of 17, and the 13 are a real gap rather than a
+    disagreement about where to attach an edge.
+
+    The proposition a reader cares about is "is this result bounded, and by what" — the first
+    half of which is a property of the bounded claim, not of the pair.
+    """
+    eligible = {c.slug for c in claims if c.role in SCOPED_ROLES}
+    out: set[str] = set()
+    for src, tgt, rel in edges:
+        if rel != "scopes":
+            continue
+        if tgt.strip() == "*":
+            out |= eligible
+        else:
+            out.add(tgt)
+    return out
+
+
+def _part_families(edges: list[tuple[str, str, str]]) -> dict[str, frozenset[str]]:
+    """For each claim, the claims that state the same proposition at a different grain.
+
+    A tree has two grains (`docs/design/2026-09-11-parts.md`): a claim can state a whole that
+    several narrower claims each partly establish, joined by `part-of` from component to whole.
+    Two extractions of one paper routinely choose different grains — a curated tree folds the
+    components in, a chain returns each comparison as the prose states it — and an edge the
+    reference drew to the whole is then drawn in the CLI tree to one of the components.
+
+    Scoring those as different edges measures the grain, not the argument. The family is the
+    transitive closure of `part-of` in both directions, so a reference edge counts as recovered
+    when it lands anywhere in the family of each endpoint.
+    """
+    adj: dict[str, set[str]] = {}
+    for src, tgt, rel in edges:
+        if rel != "part-of":
+            continue
+        adj.setdefault(src, set()).add(tgt)
+        adj.setdefault(tgt, set()).add(src)
+
+    families: dict[str, frozenset[str]] = {}
+    for slug in adj:
+        seen, stack = {slug}, [slug]
+        while stack:
+            for nxt in adj.get(stack.pop(), ()):  # noqa: B007
+                if nxt not in seen:
+                    seen.add(nxt)
+                    stack.append(nxt)
+        families[slug] = frozenset(seen)
+    return families
+
+
 def _score_edges(
     matches: list[dict],
     ref_claims: list[Claim],
     cli_claims: list[Claim],
     ref_dir: Path,
     cli_dir: Path,
-) -> tuple[int, int, int]:
+) -> tuple[int, int, int, dict[str, tuple[int, int]]]:
     """Count reference edges on matched pairs that are recovered in the CLI tree.
 
-    Returns (n_ref_edges_on_matched, n_recovered, n_cli_extra).
+    Recovery is judged up to grain: an endpoint stands for its `part-of` family, so an edge the
+    reference drew to a whole is recovered by the same edge drawn to any component of it, and
+    vice versa. Without that the score measures how the two trees split their claims. It was
+    measured: on `wengert-2026-kcnc1` the strict count was 21 of 105.
+
+    Returns (n_ref_edges_on_matched, n_recovered, n_cli_extra, by_relation), where by_relation
+    maps a relation to (recovered, total) so a failure can be read per relation rather than as
+    one number — `requires` failing and `supports` succeeding is a different fault from the
+    reverse.
     """
-    # Build ref→cli and cli→ref maps over matched pairs.
     ref_to_cli: dict[str, str] = {}
     cli_to_ref: dict[str, str] = {}
     ref_slugs = {c.slug for c in ref_claims}
@@ -469,33 +545,74 @@ def _score_edges(
             cli_to_ref[cs] = rs
 
     if not ref_to_cli:
-        return 0, 0, 0
+        return 0, 0, 0, {}
 
     ref_edges = load_edges(ref_dir)
     cli_edges = load_edges(cli_dir)
 
-    # Reference edges where both endpoints are in the matched set.
+    ref_fam = _part_families(ref_edges)
+    cli_fam = _part_families(cli_edges)
+
+    def family(slug: str, fams: dict[str, frozenset[str]]) -> frozenset[str]:
+        return fams.get(slug, frozenset({slug}))
+
+    # Every CLI edge, indexed by relation, so a family lookup is a set test.
+    cli_by_rel: dict[str, set[tuple[str, str]]] = {}
+    for src, tgt, rel in cli_edges:
+        cli_by_rel.setdefault(rel, set()).add((src, tgt))
+
     ref_edge_set: set[tuple[str, str, str]] = set()
     for src, tgt, rel in ref_edges:
         if src in ref_to_cli and tgt in ref_to_cli:
             ref_edge_set.add((src, tgt, rel))
 
-    # Map to CLI slugs for recovery check.
-    ref_mapped: set[tuple[str, str, str]] = {
-        (ref_to_cli[src], ref_to_cli[tgt], rel)
-        for src, tgt, rel in ref_edge_set
+    # `scopes` is scored by coverage, not by pair — see `_bounded_claims`.
+    ref_bounded = _bounded_claims(ref_edges, ref_claims)
+    cli_bounded = _bounded_claims(cli_edges, cli_claims)
+    cli_bounded_fam = {x for c in cli_bounded for x in family(c, cli_fam)} | cli_bounded
+
+    by_relation: dict[str, list[int]] = {}
+    recovered_pairs: set[tuple[str, str, str]] = set()
+    n_recovered = 0
+    for src, tgt, rel in ref_edge_set:
+        if rel == "scopes":
+            continue  # counted below, over claims rather than pairs
+        # The reference endpoint stands for its own family too: a curated whole may itself be
+        # one component of something the chain states whole.
+        srcs = {c for r in family(src, ref_fam) if (c := ref_to_cli.get(r))}
+        tgts = {c for r in family(tgt, ref_fam) if (c := ref_to_cli.get(r))}
+        cand_src = {x for c in srcs for x in family(c, cli_fam)}
+        cand_tgt = {x for c in tgts for x in family(c, cli_fam)}
+        hit = next((p for p in cli_by_rel.get(rel, ()) 
+                    if p[0] in cand_src and p[1] in cand_tgt), None)
+        slot = by_relation.setdefault(rel, [0, 0])
+        slot[1] += 1
+        if hit:
+            slot[0] += 1
+            n_recovered += 1
+            recovered_pairs.add((hit[0], hit[1], rel))
+
+    # Scope: of the claims the reference says are bounded and that matched a CLI claim, how
+    # many does the CLI tree also say are bounded — by any scope claim, or by a `"*"`.
+    scoped_mapped = {ref_to_cli[t] for t in ref_bounded if t in ref_to_cli}
+    hit = len({c for c in scoped_mapped
+               if c in cli_bounded_fam or (family(c, cli_fam) & cli_bounded_fam)})
+    if scoped_mapped:
+        by_relation["scopes"] = [hit, len(scoped_mapped)]
+        n_recovered += hit
+
+    # CLI edges on matched pairs that answer to no reference edge.
+    cli_edge_set: set[tuple[str, str, str]] = {
+        (src, tgt, rel) for src, tgt, rel in cli_edges
+        if src in cli_to_ref and tgt in cli_to_ref
     }
-
-    # CLI edges where both endpoints are in matched CLI slugs.
-    cli_edge_set: set[tuple[str, str, str]] = set()
-    for src, tgt, rel in cli_edges:
-        if src in cli_to_ref and tgt in cli_to_ref:
-            cli_edge_set.add((src, tgt, rel))
-
-    n_ref_on_matched = len(ref_edge_set)
-    n_recovered = len(ref_mapped & cli_edge_set)
-    n_extra = len(cli_edge_set - ref_mapped)
-    return n_ref_on_matched, n_recovered, n_extra
+    n_extra = len(cli_edge_set - recovered_pairs)
+    # The denominator counts one per reference edge, except for `scopes`, which counts one per
+    # bounded claim — the unit it is scored in. Mixing the two would make the ratio meaningless:
+    # an enumerated envelope contributes 18 edges and 18 claims, a `"*"` one edge and 18 claims.
+    n_pairwise = len([e for e in ref_edge_set if e[2] != "scopes"])
+    return (n_pairwise + len(scoped_mapped), n_recovered, n_extra,
+            {k: (v[0], v[1]) for k, v in by_relation.items()})
 
 
 def _score_role_confusion(
@@ -553,7 +670,7 @@ def score_against_reference(
 
     return _build_scorecard(
         paper_slug=paper_slug, paper_doi=paper_doi, review_mode=review_mode,
-        reference=reference, cli_dir=str(cli_dir),
+        reference=reference, cli_dir=_local(cli_dir),
         ref_claims=ref_claims, cli_claims=cli_claims, matches=matches,
         ref_dir=ref_dir, cli_dir_path=cli_dir,
     )
@@ -588,7 +705,7 @@ def score_from_precomputed_pairs(
 
     return _build_scorecard(
         paper_slug=slug, paper_doi=paper_doi, review_mode=review_mode,
-        reference=reference, cli_dir=str(cli_dir),
+        reference=reference, cli_dir=_local(cli_dir),
         ref_claims=ref_claims, cli_claims=cli_claims, matches=matches,
         ref_dir=ref_dir, cli_dir_path=cli_dir,
     )
@@ -620,6 +737,24 @@ def _fill_panel_role(
                 m["role_match"] = ref_c.role == cli_c.role
         out.append(m)
     return out
+
+
+def _local(path) -> str:
+    """A path as it should be written into a scorecard, not as this machine happened to see it.
+
+    `cli_dir` was stored resolved and absolute, so four committed scorecards name
+    `.claude/worktrees/agent-a5e6ff1bc32e226cd` — a worktree that no longer exists. A
+    scorecard is evidence about a comparison, and a reader who cannot locate either side of
+    it has less than they were promised. Inside the repository the path is written relative
+    to it; outside, only the home directory is folded away, because a candidate corpus really
+    can live elsewhere and saying so is the honest record.
+    """
+    root = Path(__file__).resolve().parents[2]
+    q = Path(path).resolve()
+    try:
+        return str(q.relative_to(root))
+    except ValueError:
+        return str(q).replace(str(Path.home()), "~")
 
 
 def _build_scorecard(
@@ -672,11 +807,12 @@ def _build_scorecard(
 
     # Edge scoring.
     try:
-        n_ref_edges, n_edge_rec, n_extra = _score_edges(
+        n_ref_edges, n_edge_rec, n_extra, edge_by_rel = _score_edges(
             matches, ref_claims, cli_claims, ref_dir, cli_dir_path)
     except Exception as e:
         logger.warning("edge scoring failed: %s", e)
         n_ref_edges = n_edge_rec = n_extra = 0
+        edge_by_rel = {}
 
     # Role confusion.
     try:
@@ -703,6 +839,7 @@ def _build_scorecard(
         n_ref_edges_on_matched=n_ref_edges,
         n_edge_recovered=n_edge_rec,
         n_cli_extra_edges=n_extra,
+        edge_recovery_by_relation=edge_by_rel,
         role_confusion=role_confusion,
         reference=reference,
     )

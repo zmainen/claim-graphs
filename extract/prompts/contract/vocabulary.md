@@ -71,7 +71,7 @@ A boundary condition on what the results can mean: the model class, the preparat
 
 ### `methodological`
 
-A capability or analytical commitment that a downstream result depends on for its interpretation: the sorting pipeline, the null distribution, the model fit that licenses a model-based analysis. Not procedure for its own sake — which software ran the task is not a claim unless a result turns on it.
+A capability or analytical commitment that a downstream result depends on for its interpretation: the sorting pipeline, the null distribution, the model fit that licenses a model-based analysis. Not procedure for its own sake — which software ran the task is not a claim unless a result turns on it. A localizer — a contrast run only to define a region or a set of trials for a later analysis — is `methodological`, not `empirical`, because the paper does not argue from it.
 
 - Typical claim type: `assessment`
 - Signals: “analysis is on”, “nulls are”, “fit better than”, “validated against”
@@ -241,6 +241,8 @@ After reconciliation a claim's confidence is a fact about agreement between read
 - `high` — more than one reader surfaced the same proposition and they agree on its panel and its direction
 - `contested` — more than one reader surfaced it and they disagree — about the panel, the direction, or whether it is a hypothesis, a prediction or a result. Record what each said in `notes`
 - `single-source` — one reader surfaced it. Expected for panel-level numerics (caption reader only), scope and methodological claims (structure reader only) and synthesis (results reader only); not a mark against the claim
+
+`confidence` on an assertion is this paper's own confidence in the proposition — analyst judgement, which the writer leaves absent rather than inventing. It is not `readers`, the agreement between extraction readers recorded beside it.
 
 ## Same, part, or different
 

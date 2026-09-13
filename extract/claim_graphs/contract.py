@@ -215,6 +215,8 @@ def render_vocabulary(root: Path | None = None) -> str:
     for name, meaning in vocabulary.CONFIDENCE:
         w(f"- `{name}` — {meaning}")
     w("")
+    w(vocabulary.ASSERTION_CONFIDENCE_NOTE)
+    w("")
 
     # The three-way test the reconciler applies to a pair, shown on real pairs.
     w("## Same, part, or different")
