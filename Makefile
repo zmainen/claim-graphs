@@ -13,6 +13,13 @@ ifneq ($(CORPUS),)
 export CLAIM_GRAPHS_CORPUS_DIR = $(CORPUS)
 endif
 
+# The graph to work on, when it is not this checkout: CLAIM_GRAPHS=/path/to/graph make -C <here> ...
+# Lets the runners reach a graph in another repository without exporting CLAIM_GRAPHS_ROOT by hand.
+CLAIM_GRAPHS ?=
+ifneq ($(CLAIM_GRAPHS),)
+export CLAIM_GRAPHS_ROOT = $(CLAIM_GRAPHS)
+endif
+
 .PHONY: help check contract skill validate test
 
 help:  ## Show this help

@@ -198,6 +198,39 @@ every command answers `no paper '<slug>'`, which is true and unhelpful:
 3. `CLAIM_GRAPHS_ROOT` at the graph, `CLAIM_GRAPHS_CORPUS_DIR` at its `claims/`, and the
    machinery's `extract/` and `scripts/` on `PYTHONPATH`.
 
+### Using the skill from another repository
+
+The commands above read as though the working directory were this checkout. It need not be. To
+carry the skill into a repository that is not this one and not the seed corpus:
+
+1. Copy or symlink `skills/claim-structures/` into that repository's `.claude/skills/`. That
+   directory is the whole skill; it holds no machinery of its own.
+2. Check this repository out beside it. The runners are loose scripts — there is nothing to
+   `pip install` yet — so they are invoked by path, and the machinery's path is the one thing
+   the skill's own commands cannot infer from where they run.
+3. Point the runners at the graph — whichever repository holds `claims/` — with
+   `CLAIM_GRAPHS_ROOT`, and reach the scripts either by path or through `make`:
+
+   ```bash
+   CLAIM_GRAPHS_ROOT=/path/to/graph python3 /path/to/machinery/scripts/pipeline.py state
+   CLAIM_GRAPHS=/path/to/graph make -C /path/to/machinery check
+   ```
+
+   `CLAIM_GRAPHS` is a one-line convenience the Makefile now reads and exports as
+   `CLAIM_GRAPHS_ROOT`; `-C` is where the scripts live. The graph and the machinery may be the
+   same directory — a checkout carrying both — in which case neither is needed.
+
+The smallest graph is the one from [Starting a graph for a paper of your
+own](#starting-a-graph-for-a-paper-of-your-own): a `claims/<slug>/index.md` and a `corpus.yaml`
+naming the slug, with no claim files yet. `state` prints one row for that paper with every layer
+`· absent`, and the mechanical runners report it as empty — zero claims, no errors — rather than
+failing. Drop the `corpus.yaml` and `state` lists nothing: the papers it shows come from the
+manifest, not from scanning the filesystem.
+
+None of this needs a checkout of the eLife corpus. That corpus is a separate repository the
+method cites as worked examples; the machinery and a graph of your own are the whole of what a
+layer reads.
+
 ### What a `doi:` may point at
 
 | reference | path taken |
