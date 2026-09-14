@@ -408,15 +408,11 @@ The fix is structural: a verification script now emits its own provenance — ev
 
 The ~150 claim status labels in the corpus that are not backed by either live execution or from-notes records are agentic extraction judgments — the LLM authoring agent's assessment of whether a claim is observationally direct, requires re-execution, or is methodological. These are draft annotations.
 
-### Two documented mismatches
+### Mismatches are the point, not the exception
 
-The two mismatches preserved through verification rather than papered over are worth naming.
+A reproduction that lands somewhere other than the paper is the case the whole apparatus exists to hold. The temptation is to round it away — to record `verified` because the direction was right, or to leave the claim unverified because the number was not. The vocabulary refuses both: `failed:mismatch` when execution produced something the paper did not report, `verified:with-nuance` when the direction reproduced and the magnitude or significance did not, each with the discrepancy recorded in `notes` precisely enough to diagnose.
 
-- **Bouyeure prior-threat (anatomical mismatch).** Reproduction finds 36 significant voxels with peak at MNI `[-9.0, -92.5, -6.0]` (occipital pole). The paper localises the prior-threat effect to the fear network. The claim file carries `failed:mismatch`; the verify log records `PASS` on the meta-claim that the discrepancy itself is reproduced.
-
-- **Wengert maximal firing (quantitative mismatch).** Direction reproduced (WT > KI); magnitude and significance off (paper: WT ≈ 201, KI ≈ 126, p < 0.001; reproduction: WT = 207.8, KI = 175.8, p = 0.166). The claim is `verified:with-nuance` rather than plain `verified`. The discrepancy is in the n recruited per group and statistical power; the underlying biology direction is correct.
-
-These two cases are the prototype's evidentiary weight. They are what the verification step is for.
+Keeping a mismatch legible is also what makes the rest of the corpus mean anything. A record set in which nothing ever fails to reproduce is not evidence of a reproducible corpus; it is evidence that failures are not being recorded. The mismatches a corpus preserves are its evidentiary weight, and they belong in that corpus's own records rather than in the machinery's documentation.
 
 ### Reverse-engineered, not forward-constructed
 
