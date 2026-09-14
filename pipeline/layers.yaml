@@ -1177,6 +1177,6 @@ layers:
     produces: ["runs/{paper}/modules.json", "views/{paper}.modules.json"]
     views: [modules]
     doc: /pipeline/layers/modules/
-    issue: 53
+    issue: zmainen/claim-graphs#53
     added: "2026-09-14"
     command: "python3 scripts/modules.py {paper} --write"
