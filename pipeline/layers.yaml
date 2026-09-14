@@ -99,6 +99,7 @@ layers:
       document is a declared input of `relation-vocab` and `claim-tree` both, so editing it marks
       every tree in the corpus stale.
     reads: [docs/claim-format.md]
+    governs: [docs/claim-format.md]     # the document *is* the decision
     views: [document]
 
   - id: relation-vocab
@@ -129,6 +130,9 @@ layers:
       reach it with no interpretable predicate.
     needs: [claim-format]
     reads: [scripts/relations.py, scripts/check_relations.py, docs/schema-mapping/claim-relations.ttl]
+    governs: []                         # relations.py carries the ruling out, check_relations.py
+                                        # enforces it, the .ttl is generated from both; the
+                                        # decision is this entry's own prose
     views: [table, comparison]
     status: accepted
     issue: zmainen/elife-claim-trees#19
@@ -180,6 +184,7 @@ layers:
       the outcome filled in, not which convention a paper happened to follow.
     needs: [claim-format, relation-vocab]
     reads: [scripts/prediction_outcome.py]
+    governs: []                         # the rule is stated here; the script applies it
     produces: [review/prediction-outcome.json]
     views: [table]
     issue: zmainen/elife-claim-trees#28
@@ -218,6 +223,7 @@ layers:
       missing rather than omitting it.
     needs: [claim-tree]
     reads: [scripts/evaluation_report.py, extract/claim_graphs/evaluate.py]
+    governs: []                         # both are implementations of the measurement
     produces: [review/evaluation.json]
     views: [table]
     issue: zmainen/claim-graphs#24
@@ -553,6 +559,7 @@ layers:
     added: "2026-09-11"
     needs: [claim-tree, prepare]
     reads: [extract/prompts/questions.md, extract/prompts/contract/vocabulary.md]
+    governs: [extract/prompts/questions.md]
     produces: ["runs/{paper}/questions.output.json"]
     views: [table]
     by_from: model
@@ -587,6 +594,7 @@ layers:
     added: "2026-09-11"
     needs: [claim-tree, relation-vocab]
     reads: [extract/prompts/parts.md, extract/prompts/contract/vocabulary.md]
+    governs: [extract/prompts/parts.md] # the contract is generated — see claim-format
     produces: ["runs/{paper}/parts.output.json"]
     views: [table, graph]
     by_from: model
@@ -1091,6 +1099,7 @@ layers:
       dropped — so a model with no backend here can still answer it.
     needs: [claim-tree, stance, prediction-outcome]
     reads: [extract/prompts/warrant.md, extract/prompts/contract/vocabulary.md, scripts/warrant.py]
+    governs: [extract/prompts/warrant.md]
     produces: ["runs/{paper}/warrant.json"]
     views: [table]
     issue: zmainen/claim-graphs#21
