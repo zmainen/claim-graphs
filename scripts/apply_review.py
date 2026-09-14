@@ -27,9 +27,17 @@ import os
 import re
 import sys
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# Paths here are the graph's, not this checkout's (scripts/roots.py). Deriving a root
+# from __file__ wrote corpus output into the machinery checkout: issue #50.
+#
+# The sys.path line is not decoration: these scripts are sometimes loaded by path rather
+# than imported by name (extract/tests/test_profiles.py does), and a sibling import then
+# has nothing to resolve against.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # noqa: E402
+import roots  # noqa: E402
+from roots import GRAPH as ROOT  # noqa: E402
 QUEUE_DIR = os.path.join(ROOT, "review")
-CLAIMS = os.path.join(ROOT, "claims")
+CLAIMS = roots.CLAIMS   # honours CLAIM_GRAPHS_CORPUS_DIR
 
 # What each decided type does to the edge. `keep` types change nothing per-edge; only the
 # declaration in export_mira.py changes, and that is a one-line edit made by hand.

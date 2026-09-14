@@ -33,10 +33,19 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import sys
 from collections import Counter
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PROMPTS = os.path.join(ROOT, "extract", "prompts")
+# Paths here are the graph's, not this checkout's (scripts/roots.py). Deriving a root
+# from __file__ wrote corpus output into the machinery checkout: issue #50.
+#
+# The sys.path line is not decoration: these scripts are sometimes loaded by path rather
+# than imported by name (extract/tests/test_profiles.py does), and a sibling import then
+# has nothing to resolve against.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # noqa: E402
+import roots  # noqa: E402
+from roots import GRAPH as ROOT  # noqa: E402
+PROMPTS = roots.machinery("extract", "prompts")   # the machinery's, not the graph's
 RUNS = os.path.join(ROOT, "runs")
 OUT = os.path.join(ROOT, "site", "src", "data", "agents.json")
 
@@ -115,7 +124,7 @@ LAYER_OF = {"results-reader": "results-reader", "caption-reader": "caption-reade
 
 def declared_reads():
     import yaml
-    with open(os.path.join(ROOT, "pipeline", "layers.yaml"), encoding="utf-8") as fh:
+    with open(roots.machinery("pipeline", "layers.yaml"), encoding="utf-8") as fh:
         decl = yaml.safe_load(fh)
     return {l["id"]: l.get("reads") or [] for l in decl["layers"]}
 
