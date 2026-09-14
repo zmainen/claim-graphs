@@ -13,6 +13,13 @@ ifneq ($(CORPUS),)
 export CLAIM_GRAPHS_CORPUS_DIR = $(CORPUS)
 endif
 
+# The graph to work on, when it is not this checkout: CLAIM_GRAPHS=/path/to/graph make -C <here> ...
+# Lets the runners reach a graph in another repository without exporting CLAIM_GRAPHS_ROOT by hand.
+CLAIM_GRAPHS ?=
+ifneq ($(CLAIM_GRAPHS),)
+export CLAIM_GRAPHS_ROOT = $(CLAIM_GRAPHS)
+endif
+
 .PHONY: help check contract skill validate test
 
 help:  ## Show this help
@@ -59,6 +66,8 @@ check:  ## Gates that are clean on main. A failure here is this change's fault.
 	# No runner may derive a corpus path from its own location (#50).
 	$(PYTHON) scripts/test_roots.py
 	$(PYTHON) scripts/test_agent_mode.py
+	# A bare graph — one index, no corpus.yaml — reports empty rather than crashing (#70).
+	$(PYTHON) scripts/test_empty_graph.py
 
 test:  ## The whole suite under pytest
 	cd extract && $(PYTHON) -m pytest tests/ -q

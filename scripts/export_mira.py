@@ -756,6 +756,16 @@ def public_papers():
     return sorted(set(out))
 
 
+def papers_on_disk():
+    """Every claim directory present, manifest or not. The fallback for a graph with no
+    `corpus.yaml`: a linter or report over `claims/` still has papers to read, one of them
+    possibly empty."""
+    if not os.path.isdir(CLAIMS_DIR):
+        return []
+    return sorted(d for d in os.listdir(CLAIMS_DIR)
+                  if os.path.isdir(os.path.join(CLAIMS_DIR, d)))
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -769,8 +779,7 @@ def main():
     args = p.parse_args()
 
     if args.all:
-        on_disk = sorted(d for d in os.listdir(CLAIMS_DIR)
-                         if os.path.isdir(os.path.join(CLAIMS_DIR, d)))
+        on_disk = papers_on_disk()
         allowed = public_papers()
         if allowed is None or args.include_private:
             papers = on_disk
