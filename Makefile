@@ -27,6 +27,8 @@ check:  ## Gates that are clean on main. A failure here is this change's fault.
 	# The flat-text branch of prepare(). No corpus here exercises it — every eLife paper is
 	# JATS — which is how it sat broken for the life of the repository (#47).
 	cd extract && $(PYTHON) tests/test_flat_text_path.py
+	# Replicates are peers, not versions, and two models are not one distribution.
+	$(PYTHON) scripts/test_replicates.py
 	cd extract && $(PYTHON) tests/test_claimset.py
 	# What a claim approval is granted to. Every field wrongly in the hash voids real
 	# judgements for a reason unrelated to them.
