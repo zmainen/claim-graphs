@@ -56,6 +56,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import sys
 
@@ -67,6 +68,16 @@ from export_mira import (CLAIMS_DIR, load_paper, public_papers,  # noqa: E402
 
 from relations import (CONTRARY, NEUTRAL_TEST,  # noqa: E402
                        OUTCOME, STANCES)
+from roots import GRAPH as GRAPH_ROOT  # noqa: E402
+
+# A synthesis or interpretation earns its place by what it does to the argument, not by what
+# feeds it (issue #53). It must point outward — `supports` a hypothesis, `rules-out` an
+# alternative, `interprets` a member, or otherwise bear on a member — or the `modules` layer
+# cannot place it and it is loose. The set is the argument-outward relations; `requires`,
+# `scopes`, `enables-method`, `part-of` and `derived-from` are inward or structural and do not
+# count as settling anything.
+ARG_OUTWARD = {"supports", "rules-out", "interprets", "qualifies", "extends", "refutes",
+               "confirms", "tests", "contradicts", "in-tension-with", "dissociates-with"}
 
 # The support-plus-oppose rule (issue #19), now sound under the #125 ruling. A source may not
 # both *support* a target and assert it *false*. The support side is narrow on purpose: `tests`
@@ -128,6 +139,15 @@ WARNS = [
      "A relation naming a slug that is not a claim in this paper.",
      "Either the target was never written or a slug was renamed and the edge not followed. "
      "`scopes: '*'` is the one legal non-slug target and means the whole paper."),
+    ("synthesis-without-outgoing-argument-edge",
+     "A `synthesis` or `interpretation` with no outgoing argument edge (issue #53).",
+     "It aggregates evidence and settles nothing. Add the edge that says what it bears on — "
+     "`supports` a hypothesis, `rules-out` an alternative, or `interprets` a member — or the "
+     "`modules` layer leaves it loose."),
+    ("loose-claim",
+     "A claim the `modules` layer could not place, reported once that layer has run (issue #53).",
+     "The module derivation names the edge each loose claim wants. Add it, or accept that the "
+     "claim stands outside the paper's argument."),
 ]
 
 LINT_SUPPORT = {"supports", "extends", "validates", "confirms"}
@@ -248,6 +268,27 @@ def check(paper_slug):
         if keys & NEUTRAL_TEST and not keys & OUTCOME:
             bucket.append(f"{c['slug']}: tested prediction with no outcome edge "
                           f"(a `tests` points at it, no `confirms`/`refutes` does)")
+
+    # A synthesis or interpretation with only incoming edges settles nothing (issue #53). It
+    # earns its place by pointing outward, so a missing outward edge is what leaves the `modules`
+    # layer unable to place it. A warning, like the other module-shaped lints below.
+    for c in claims:
+        if c.get("role") in ("synthesis", "interpretation"):
+            if not ({key for key, _ in relations(c)} & ARG_OUTWARD):
+                warnings.append(f"{c['slug']}: {c['role']} with no outgoing argument edge — it "
+                                f"aggregates evidence and settles nothing; add a `supports`, "
+                                f"`rules-out` or `interprets` to what it bears on")
+
+    # Once the `modules` layer has run, echo its loose list here: each loose claim names the edge
+    # it wants, and the linter is where an author looking for what to fix will read it.
+    mpath = os.path.join(GRAPH_ROOT, "runs", paper_slug, "modules.json")
+    if os.path.isfile(mpath):
+        try:
+            loose = (json.load(open(mpath, encoding="utf-8")) or {}).get("loose", [])
+        except (json.JSONDecodeError, OSError):
+            loose = []
+        for it in loose:
+            warnings.append(f"{it['slug']}: loose after `modules` — {it.get('reason', '')}")
 
     return errors, warnings
 

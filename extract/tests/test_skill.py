@@ -110,14 +110,17 @@ def test_runbook_names_the_declared_chain():
     assert named <= ids, f"runbook names layers that do not exist: {named - ids}"
 
 
-def test_the_runbook_drives_past_claim_tree_to_the_alternatives():
-    """`claim-tree` is not the end of induction, and the runbook must not stop there.
+def test_the_runbook_drives_to_the_last_mechanical_structuring_step():
+    """`claim-tree` is not the end of induction, and the runbook drives past it to `modules`.
 
     Driving to `claim-tree` produces a tree that looks finished and carries no eliminative
     structure: the first end-to-end agent run returned 139 claims, 27 controls and zero
     `rules-out`, because `stance` — which raises the rivals and attaches those edges — sits
-    outside that chain. Every consumer of a finished tree already declares it: `mira-export`,
-    `oxa-export` and `warrant` all name `stance` in `needs`.
+    outside that chain. `modules` is one step further and is the right destination for the same
+    reason `stance` was over `claim-tree`: it is the last mechanical step, needing no model,
+    that gives a finished tree its structure. So the target must build the tree, transitively
+    reach `stance` (which every finished-tree consumer — `mira-export`, `oxa-export`, `warrant` —
+    declares), and itself need no model, or the loop would stall waiting on a prompt.
     """
     import yaml as _yaml
     decl = _yaml.safe_load((REPO / "pipeline" / "layers.yaml").read_text(encoding="utf-8"))
@@ -125,11 +128,13 @@ def test_the_runbook_drives_past_claim_tree_to_the_alternatives():
     chain = [ly["id"] for ly in skill._chain(REPO, skill.INDUCTION_TARGET)]
     assert "claim-tree" in chain, "the induction target must still build the tree"
     assert "stance" in chain, "the runbook must reach the layer that authors the alternatives"
-    # And the target is one the finished-tree consumers agree on.
+    # The finished-tree consumers agree on `stance`, and the target's chain must include it.
     for consumer in ("mira-export", "oxa-export"):
-        assert skill.INDUCTION_TARGET in (by_id[consumer].get("needs") or []), (
-            f"{consumer} does not require {skill.INDUCTION_TARGET}; if the target moved, "
-            f"check it is still what a finished tree means")
+        assert "stance" in (by_id[consumer].get("needs") or []), (
+            f"{consumer} no longer requires stance; the finished-tree invariant moved")
+    # The target itself is mechanical: a model-answered target would leave the loop waiting.
+    assert by_id[skill.INDUCTION_TARGET].get("by_from") != "model", (
+        f"{skill.INDUCTION_TARGET} needs a model; the runbook must drive to a mechanical step")
 
 
 def test_closed_value_sets_agree_with_the_converter():

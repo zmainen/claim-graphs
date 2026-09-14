@@ -42,6 +42,9 @@ check:  ## Gates that are clean on main. A failure here is this change's fault.
 	cd extract && $(PYTHON) tests/test_evaluate_precision_and_edges.py
 	cd extract && $(PYTHON) tests/test_verdicts.py
 	$(PYTHON) scripts/test_warrant.py
+	# The modules derivation: the six steps on a synthetic paper, byte-stability, and the two
+	# check_relations warnings the layer adds. Builds its own corpus, so it needs no CORPUS.
+	$(PYTHON) scripts/test_modules.py
 	$(PYTHON) scripts/test_pipeline_versions.py
 	# No runner may derive a corpus path from its own location (#50).
 	$(PYTHON) scripts/test_roots.py
