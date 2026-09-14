@@ -113,15 +113,25 @@ layers:
       four disagreed. `check_relations.py` runs that vocabulary over the corpus and is the gate
       `make check` enforces.
 
-      What is undecided is not the implementation but the semantics: whether `supports` and
-      `consistent-with` assert different things, and whether opposition is one relation or several.
-      Until issue #19 closes, every count and every export downstream is provisional in the precise
-      sense that it would change if the answer did.
+      The semantics were the open part, and they were settled on 2026-09-13. The
+      `zmainen/elife-claim-trees#125` ruling split the old `dissociates-with` in two, because it
+      was carrying both readings at once: the neutral contrast keeps the name and moved to GAPS,
+      where it opposes nothing and exports under no MIRA predicate, and the oppositional reading
+      became `in-tension-with` — two claims the paper asserts whose implications pull against each
+      other. `in-tension-with` exports under `mira:opposes` but is kept out of CONTRARY, so the
+      support-plus-oppose lint leaves it alone; that is what made the twelve pairs that carried
+      both a support and an opposition coherent rather than errors. `zmainen/elife-claim-trees#28`
+      supplied the other missing half, `refutes`, so a failed prediction can be written down.
+
+      Both rulings are written into `scripts/relations.py` and gated by `check_relations.py`. What
+      remains open is not the vocabulary but what a consumer can do with it: `zmainen/claim-graphs#7`
+      asks MIRA for a non-polar relation mechanism, because 59% of this corpus's relations still
+      reach it with no interpretable predicate.
     needs: [claim-format]
     reads: [scripts/relations.py, scripts/check_relations.py, docs/schema-mapping/claim-relations.ttl]
     views: [table, comparison]
-    issue: 19
-    open: true                 # no decision yet; everything downstream is provisional
+    status: accepted
+    issue: zmainen/elife-claim-trees#19
 
   - id: epistemic-vocab
     kind: question
@@ -136,10 +146,15 @@ layers:
 
       Nothing runs here. There is no script and no output, which is what an open question looks like
       before anyone has built the machinery to evaluate it.
+
+      A direction was ruled on 2026-09-13 (`zmainen/elife-claim-trees#20`): keep the field, but
+      derive it from an evaluation of the evidence rather than from the paper's own assertion, and
+      give it a better name and an operational definition. That is a direction and not yet a
+      definition, so this stays open — the successor work is `zmainen/claim-graphs#21`, the warrant
+      question, which is the layer that would compute it.
     needs: [claim-format]
     views: [table]
-    issue: 20
-    open: true
+    issue: zmainen/claim-graphs#21
 
   # Accepted on the issue #28 ruling (2026-09-13): every tested prediction carries an outcome,
   # and `refutes` is the negative outcome beside `confirms`. Accepting the rule accepted its
@@ -167,7 +182,7 @@ layers:
     reads: [scripts/prediction_outcome.py]
     produces: [review/prediction-outcome.json]
     views: [table]
-    issue: 28
+    issue: zmainen/elife-claim-trees#28
     added: "2026-09-11"
     found: >
       `tests` is neutral by design, so a tree can record that a prediction was tested and never
@@ -205,8 +220,7 @@ layers:
     reads: [scripts/evaluation_report.py, extract/claim_graphs/evaluate.py]
     produces: [review/evaluation.json]
     views: [table]
-    issue: 85
-    open: true
+    issue: zmainen/claim-graphs#24
     added: "2026-09-12"
     found: >
       Of {{evaluation_n_rows}} profile × paper rows, {{evaluation_n_scored}} were scored and
@@ -1079,7 +1093,7 @@ layers:
     reads: [extract/prompts/warrant.md, extract/prompts/contract/vocabulary.md, scripts/warrant.py]
     produces: ["runs/{paper}/warrant.json"]
     views: [table]
-    issue: 126
+    issue: zmainen/claim-graphs#21
     added: "2026-09-13"
     by_from: model
     command: "cd extract && python3 -m claim_graphs.cli warrant --paper {paper}"
@@ -1118,6 +1132,6 @@ layers:
     reads: [extract/claim_graphs/verification_check.py]
     produces: ["runs/{paper}/verification-check.output.json"]
     views: [table]
-    issue: 126
+    issue: zmainen/claim-graphs#21
     added: "2026-09-13"
     command: "cd extract && python3 -m claim_graphs.cli verification-check --paper {paper}"

@@ -134,6 +134,27 @@ def test_every_layer_has_a_title():
         assert layer.get("title"), f"{lid}: missing required `title:` field"
 
 
+def test_every_issue_reference_names_the_tracker_that_owns_it():
+    """`issue:` must be `owner/repo#n`, never a bare number.
+
+    A bare number means "whatever tracker the reader assumes", and after the machinery moved to
+    its own repository the two assumptions diverged: #85 and #126 resolved to nothing in either
+    tracker, while #19 and #28 resolved to unrelated *pull requests* in claim-graphs. The site
+    built every link by pasting the number onto one hardcoded repository URL, so the rot was
+    published rather than caught. Issues are also renumbered on transfer — elife-claim-trees#126
+    is claim-graphs#21 — so the number alone cannot survive a move.
+
+    This is a format check, not a reachability check: it runs offline and on every PR, which a
+    check that called the GitHub API could not.
+    """
+    for lid, layer in _declaration().items():
+        ref = layer.get("issue")
+        if ref is None:
+            continue
+        assert re.fullmatch(r"[\w.-]+/[\w.-]+#\d+", str(ref)), (
+            f"{lid}: issue: {ref!r} — write it as owner/repo#n, e.g. zmainen/claim-graphs#21")
+
+
 def test_induction_layers_all_have_runners():
     """The five layers `pipeline.py run` used to refuse, and the two added with them.
 
