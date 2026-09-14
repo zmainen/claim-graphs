@@ -25,7 +25,14 @@ ROLES: dict[str, tuple[str, list[str]]] = {
     "results-reader": ("results-reader.md", [_VOCAB, _CANDIDATE]),
     "caption-reader": ("caption-reader.md", [_VOCAB, _CANDIDATE]),
     "structure-reader": ("structure-reader.md", [_VOCAB, _CANDIDATE]),
+    # The two perspective readers. Same contract as the slice readers — they return the
+    # same candidate claims — and a different task, which is the whole of the difference.
+    "evidence-reader": ("evidence-reader.md", [_VOCAB, _CANDIDATE]),
+    "argument-reader": ("argument-reader.md", [_VOCAB, _CANDIDATE]),
     "reconciler": ("reconciler.md", [_VOCAB, _DRAFT]),
+    # `converge` is to the perspective readers what `reconciler` is to the slice readers,
+    # and returns the same draft table with one field added, so it reads the same contract.
+    "converge": ("converge.md", [_VOCAB, _DRAFT]),
     "external-reviewer": ("external-reviewer.md", [_VOCAB, _DRAFT, _PATCH]),
     # Edge inference reads the vocabulary — where the relations, their directions and the
     # confusable pairs are defined — but not the claim schema: it returns edges, not claims.

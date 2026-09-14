@@ -48,6 +48,7 @@ FILES = (
     "references/checks.md",
     "references/presentation.md",
     "workflows/analyze-paper.md",
+    "workflows/read-any-document.md",
     "workflows/spec-paper.md",
     "workflows/design-experiment.md",
 )

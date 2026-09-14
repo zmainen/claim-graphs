@@ -106,8 +106,18 @@ NEVER_EMITTED = set(RECIPROCAL.values())          # {"derived-from"}
 # The outcome relations run from the result that settled a test to the prediction it tested, so
 # their source is a control or an empirical claim, exactly like `tests`, and their target is a
 # prediction (checked below beside `tests`).
-_SOURCE_ROLE = {"entails": {"hypothesis"}, "scopes": {"scope"}, "tests": {"empirical", "control"},
-                "rules-out": {"empirical", "control"}, "confirms": {"empirical", "control"},
+# `rules-out` also from `literature-context`: a paper can eliminate a rival on evidence it did
+# not gather. A review does nothing else — it owns no experiment, so every elimination it makes
+# runs on an inherited result — and restricting the source to the paper's own empirical claims
+# left five rejected alternatives in one graph with nothing aimed at them: the tree recorded
+# that the paper rejects them and not why. The warrant is not lost by allowing it, because the
+# source's own role already carries it: `literature-context` exists so that an inherited premise
+# is auditable as inherited. Elimination carried by argument rather than by evidence stays
+# `opposes`, which is unrestricted; that is the line between the two.
+_SOURCE_ROLE = {"entails": {"hypothesis"}, "scopes": {"scope"},
+                "tests": {"empirical", "control"},
+                "rules-out": {"empirical", "control", "literature-context"},
+                "confirms": {"empirical", "control"},
                 "refutes": {"empirical", "control"}}
 
 # The relations whose target must be a prediction: the neutral test and its two outcomes.

@@ -107,6 +107,30 @@ def cmd_prepare(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_converge(args: argparse.Namespace) -> int:
+    """Layer `converge` — one table from the two perspective readings, sides recorded."""
+    from .layers import converge_layer, converge_request
+
+    cfg = _cfg(args)
+    if _dump(args, lambda: converge_request(args.paper, cfg), "converge"):
+        return 0
+    path, table = converge_layer(args.paper, cfg, answer=args.answer)
+    by_origin: dict[str, int] = {}
+    for c in table.claims:
+        by_origin[c.origin] = by_origin.get(c.origin, 0) + 1
+    print(f"=== converge — {args.paper} ===")
+    print(f"  model    = {table.model}")
+    print(f"  claims   = {len(table.claims)}")
+    for origin in ("both", "argument-only", "evidence-only"):
+        n = by_origin.get(origin, 0)
+        note = {"both": "the argument and the evidence meet",
+                "argument-only": "asserted; nothing in the document shows it",
+                "evidence-only": "shown; no part of the argument uses it"}[origin]
+        print(f"    {origin:14s} {n:4d}   {note}")
+    print(f"  written: {path}")
+    return 0
+
+
 def _reader(agent: str):
     def run(args: argparse.Namespace) -> int:
         from .layers import reader_layer, reader_request
@@ -1057,6 +1081,46 @@ def build_parser() -> argparse.ArgumentParser:
         _add_common_args(p)
         _add_model_args(p)
         p.set_defaults(func=_reader(agent))
+
+    # ── the two perspective readers ──────────────────────────────────────
+    # Same runner, same contract, same output shape as the three above. What differs is that
+    # each reads the WHOLE document rather than a slice of it, so their convergence is not an
+    # artifact of where the cuts fell — and on a document with no Results and no Methods, which
+    # is where the slice readers go silent, these two still have something to read.
+    for agent, reads in (("evidence", "what the document shows, part by part"),
+                         ("argument", "what the document claims, and how it hangs together")):
+        p = sub.add_parser(
+            f"{agent}-reader", help=f"Layer `{agent}-reader` — read {reads}.",
+            description=(
+                f"Run the {agent}-reader over the whole of runs/<paper>/prepared.json and "
+                f"write its candidate claims to runs/<paper>/{agent}-reader.output.json. "
+                f"The two perspective readers are answered apart: `converge` records which "
+                f"side each proposition came from, and a reader that has seen the other's "
+                f"answer makes that record meaningless."
+            ),
+        )
+        p.add_argument("--paper", required=True, help="Paper slug.")
+        _add_answerable_args(p, "the model recorded is the file it came from.")
+        _add_common_args(p)
+        _add_model_args(p)
+        p.set_defaults(func=_reader(agent))
+
+    # ── converge ─────────────────────────────────────────────────────────
+    p_conv = sub.add_parser(
+        "converge", help="Layer `converge` — one table from the two perspective readings.",
+        description=(
+            "Merge the evidence and argument readings into one table in which every claim "
+            "records the side it came from: `both`, `argument-only` (asserted, nothing shown "
+            "for it) or `evidence-only` (shown, no argument uses it). Writes "
+            "runs/<paper>/converge.output.json. It replaces the reader-count grade rather "
+            "than adding to it — see the task prompt for why a count measures little here."
+        ),
+    )
+    p_conv.add_argument("--paper", required=True, help="Paper slug.")
+    _add_answerable_args(p_conv, "the model recorded is the file it came from.")
+    _add_common_args(p_conv)
+    _add_model_args(p_conv)
+    p_conv.set_defaults(func=cmd_converge)
 
     # ── reconcile ────────────────────────────────────────────────────────
     p_rec = sub.add_parser(

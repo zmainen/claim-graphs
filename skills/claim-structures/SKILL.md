@@ -142,6 +142,7 @@ that have to be eliminated to the measurements that eliminate them.
 | You are… | Read | Has a runner |
 |:---------|:-----|:-------------|
 | turning a published or drafted paper into claims | [workflows/analyze-paper.md](workflows/analyze-paper.md) | yes — the layers below |
+| reading anything that is not an IMRaD paper — a review, a perspective, a grant, a proposal | [workflows/read-any-document.md](workflows/read-any-document.md) | yes — two perspective readers |
 | speccing or restructuring a paper you are writing | [workflows/spec-paper.md](workflows/spec-paper.md) | not yet |
 | designing an experiment or study before data exists | [workflows/design-experiment.md](workflows/design-experiment.md) | not yet |
 | checking a structure someone else built | [references/checks.md](references/checks.md) | yes — `make check` |
@@ -211,6 +212,20 @@ every command answers `no paper '<slug>'`, which is true and unhelpful:
 | a local `.xml` / `.nxml` | JATS, read as structure |
 | `.md`, `.docx`, `.tex`, `.html`, `.odt`, `.rst` | converted to JATS by pandoc, then read as structure |
 | a local `.pdf` | flat text, sliced by pattern |
+
+### When the document is not IMRaD
+
+The intake above gets the text in. Whether anything can *read* it is a separate question, and
+the answer depends on whether the document has a Results section. The three readers in
+[workflows/analyze-paper.md](workflows/analyze-paper.md) are three slices of an IMRaD paper: a
+review, a perspective, an opinion piece or a grant hands two of them empty text, and
+`reconcile` then grades claims by an agreement those readers had no opportunity to reach.
+
+[workflows/read-any-document.md](workflows/read-any-document.md) is the path for those
+documents. Two readers, each given the whole document, one working up from what it shows and
+one down from what it claims; `converge` records which side each claim came from rather than
+counting readers. Use it whenever the document is not a primary research paper, or when you do
+not know and would rather not assume.
 
 The distinction that matters is not the file extension but which of two branches the document
 reaches. JATS is read as structure: sections by their titles, captions bound to figure ids,

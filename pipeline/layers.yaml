@@ -359,6 +359,73 @@ layers:
     by_from: model
     command: "cd extract && python3 -m claim_graphs.cli structure-reader --paper {paper}"
 
+  # ── the perspective readers ──────────────────────────────────────────────
+  # Two readings of the WHOLE document, from opposite ends. The three slice readers above are
+  # three cuts of an IMRaD paper, and what `reconcile` grades as their agreement is the chance
+  # that one proposition landed in two of those cuts — which on a document with no Results and
+  # no Methods cannot happen at all. These two cannot agree by that accident, and where they
+  # disagree the side names a defect rather than a missing slice.
+  - id: evidence-reader
+    group: induction
+    kind: candidate
+    scope: paper
+    title: Evidence reading
+    question: What does this document show, and where exactly does it show it?
+    how: >
+      Works upward from the part inventory — figures, panels, reported values, and for a
+      document that owns no experiments, the findings it inherits from citations. Anchors each
+      claim to a part that exists rather than to a part an IMRaD paper would have.
+    needs: [prepare]
+    reads:
+      - extract/prompts/evidence-reader.md
+      - extract/prompts/contract/vocabulary.md
+      - extract/prompts/contract/schema-candidate.md
+    produces: ["runs/{paper}/evidence-reader.output.json"]
+    command: "cd extract && python3 -m claim_graphs.cli evidence-reader --paper {paper}"
+    by_from: model
+    independent: true
+
+  - id: argument-reader
+    group: induction
+    kind: candidate
+    scope: paper
+    title: Argument reading
+    question: What does this document claim, and how does the claim hang together?
+    how: >
+      Works downward from the question the document asks: the answer it commits to, the
+      predictions that follow, the rivals it names — each of which needs a claim of its own or
+      an eliminative move has nothing to point at — the scope it disclaims, and the premises it
+      inherits.
+    needs: [prepare]
+    reads:
+      - extract/prompts/argument-reader.md
+      - extract/prompts/contract/vocabulary.md
+      - extract/prompts/contract/schema-candidate.md
+    produces: ["runs/{paper}/argument-reader.output.json"]
+    command: "cd extract && python3 -m claim_graphs.cli argument-reader --paper {paper}"
+    by_from: model
+    independent: true
+
+  - id: converge
+    group: induction
+    kind: step
+    scope: paper
+    title: Converge
+    question: Which propositions did both readings find, and which did only one?
+    how: >
+      One table from the two readings, each claim carrying `origin`: `both` where the argument and
+      the evidence meet, `argument-only` for an assertion with nothing shown for it,
+      `evidence-only` for a result no argument uses. Deliberately not a count — two readings of
+      one document converge cheaply, so the tally says little and the asymmetry says a lot.
+    needs: [evidence-reader, argument-reader, claim-format]
+    reads:
+      - extract/prompts/converge.md
+      - extract/prompts/contract/vocabulary.md
+      - extract/prompts/contract/schema-draft.md
+    produces: ["runs/{paper}/converge.output.json"]
+    command: "cd extract && python3 -m claim_graphs.cli converge --paper {paper}"
+    by_from: model
+
   - id: reconcile
     group: induction
     kind: step

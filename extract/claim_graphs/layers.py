@@ -144,7 +144,9 @@ def read_prepared(paper: str, cfg: Config) -> PreparedPaper:
 
 READER_OUTPUT = {"results": "results-reader.output.json",
                  "caption": "caption-reader.output.json",
-                 "structure": "structure-reader.output.json"}
+                 "structure": "structure-reader.output.json",
+                 "evidence": "evidence-reader.output.json",
+                 "argument": "argument-reader.output.json"}
 
 
 def reader_layer(agent: str, paper: str, cfg: Config, *,
@@ -230,6 +232,84 @@ def reconcile_layer(paper: str, cfg: Config, *,
         payload["usage"] = usage
     path = _write_json(run_file(paper, "reconciler.output.json", cfg), payload)
     return path, draft
+
+
+def _two_perspectives(paper: str, cfg: Config):
+    return read_reader("evidence", paper, cfg), read_reader("argument", paper, cfg)
+
+
+def converge_request(paper: str, cfg: Config) -> tuple[str, str]:
+    """The exact (system, user) the converge layer would send."""
+    from .prompts import prompt
+
+    prepared = read_prepared(paper, cfg)
+    ev, arg = _two_perspectives(paper, cfg)
+    user = (
+        f"# Paper\n\nSlug: {prepared.paper_slug}\nTitle: {prepared.title}\n\n"
+        f"## Evidence reading — what the document shows ({len(ev.claims)} claims)\n\n"
+        f"```json\n{ev.model_dump_json(indent=2)}\n```\n\n"
+        f"## Argument reading — what the document claims ({len(arg.claims)} claims)\n\n"
+        f"```json\n{arg.model_dump_json(indent=2)}\n```\n\n"
+        "Return the converged table per your instructions, every claim carrying `origin`. "
+        "JSON only — no surrounding prose.\n"
+    )
+    return prompt("converge", cfg), user
+
+
+def converge_from_raw(raw: str, paper: PreparedPaper, ev, arg) -> "ConvergedClaimTable":
+    """Validate a raw converge answer, stating the fields the pipeline knows.
+
+    Set, not defaulted, for the same reason `draft_from_raw` states them: a model shown the
+    paper's identity in its prompt will echo it back, and `setdefault` would take the echo.
+    """
+    from .agents import parse_json_response
+    from .schema import ConvergedClaimTable
+
+    parsed = parse_json_response(raw)
+    if not isinstance(parsed, dict):
+        raise ValueError(f"converge returned non-dict JSON: {type(parsed).__name__}")
+    parsed["paper_slug"] = paper.paper_slug
+    parsed["paper_doi"] = paper.doi
+    parsed["paper_title"] = paper.title
+    parsed["extraction_path"] = paper.extraction_path
+    parsed["extraction_path_note"] = paper.extraction_path_note
+    parsed["per_agent_counts"] = {"evidence": len(ev.claims), "argument": len(arg.claims)}
+    return ConvergedClaimTable(**parsed)
+
+
+def converge_layer(paper: str, cfg: Config, *,
+                   answer: str | None = None) -> tuple[Path, "ConvergedClaimTable"]:
+    """One table from the two perspective readings, each claim carrying the side it came from.
+
+    `converge` is to the perspective readers what `reconcile` is to the slice readers, and it
+    deliberately does not grade by reader count. Two readings of one document converge cheaply,
+    so a tally of convergence carries almost nothing; which side a claim came from names a
+    defect in the document. See extract/prompts/converge.md.
+    """
+    from .agents import stream_text, token_budget
+
+    prepared = read_prepared(paper, cfg)
+    ev, arg = _two_perspectives(paper, cfg)
+    if answer is not None:
+        f, label = answer_file(answer, cfg)
+        table = converge_from_raw(f.read_text(encoding="utf-8"), prepared, ev, arg)
+        table.model = label
+        usage: dict = answered_usage()
+    else:
+        system, user = converge_request(paper, cfg)
+        # The reasoner, not a reader: deciding whether two differently-worded sentences state
+        # one proposition is the judgement `reconcile` is given its stronger model for, and the
+        # calibration in claim_graphs/overlap.py shows it cannot be done mechanically at all.
+        raw, usage = stream_text(cfg, model=cfg.model_reconcile, system=system, user=user,
+                                 max_tokens=token_budget("reconciler",
+                                                         len(ev.claims) + len(arg.claims)),
+                                 label="converge")
+        table = converge_from_raw(raw, prepared, ev, arg)
+        table.model = cfg.model_reconcile
+    payload = json.loads(table.model_dump_json())
+    if usage:
+        payload["usage"] = usage
+    return _write_json(run_file(paper, "converge.output.json", cfg), payload), table
 
 
 def external_review_request(paper: str, cfg: Config) -> tuple[str, str]:

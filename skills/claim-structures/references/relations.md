@@ -34,7 +34,7 @@ in existing corpora. Both are the schema; a tool that reads only one undercounts
 | `refutes` | an empirical result refutes the prediction it tested — the negative outcome of a test | from the result to the prediction it came out against — the negative outcome of a test, aimed at a prediction only |
 | `replicates` | an independent finding of the same result as the target | from the independent finding to the claim it reproduces |
 | `requires` | a claim depends on another holding | from the dependent claim to its prerequisite: the source would be invalid if the target were false |
-| `rules-out` | the source's evidence eliminates the target as an explanation | from the control or evidence to the alternative explanation it eliminates — a claim the paper entertains or rejects, never one it asserts |
+| `rules-out` | the source's evidence eliminates the target as an explanation | from the evidence to the alternative explanation it eliminates — a claim the paper entertains or rejects, never one it asserts. The evidence may be the paper's own (`empirical`, `control`) or inherited (`literature-context`), which is how a review eliminates anything. Elimination carried by argument rather than by evidence is `opposes` |
 | `scopes` | a scope constraint governs another claim's validity | from the scope claim to the claims it bounds, or to `*` for every empirical claim in the paper |
 | `supports` | the source provides evidence for the target | from the evidence to the claim it is evidence for |
 | `tests` | an empirical result tests the target prediction, closing the loop | from the empirical result to the prediction it tests |
@@ -166,7 +166,7 @@ opposite to `requires`, which runs from the result to what it depends on.
 - `A refutes B` — from the result to the prediction it came out against — the negative outcome of a test, aimed at a prediction only.
 - `A replicates B` — from the independent finding to the claim it reproduces.
 - `A requires B` — from the dependent claim to its prerequisite: the source would be invalid if the target were false.
-- `A rules-out B` — from the control or evidence to the alternative explanation it eliminates — a claim the paper entertains or rejects, never one it asserts.
+- `A rules-out B` — from the evidence to the alternative explanation it eliminates — a claim the paper entertains or rejects, never one it asserts. The evidence may be the paper's own (`empirical`, `control`) or inherited (`literature-context`), which is how a review eliminates anything. Elimination carried by argument rather than by evidence is `opposes`.
 - `A scopes B` — from the scope claim to the claims it bounds, or to `*` for every empirical claim in the paper.
 - `A supports B` — from the evidence to the claim it is evidence for.
 - `A tests B` — from the empirical result to the prediction it tests.
