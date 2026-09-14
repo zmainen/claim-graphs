@@ -1,0 +1,15 @@
+{
+  "note": "The DERIVED way: an analysis pipeline produces results with provenance (data, code, panel), folding under the finding they bear on and carrying the finding's outcome for the prediction it tests.",
+  "results": [
+    {"slug": "result-shine-delta", "panel": "fig1a", "script": "analysis/scripts/measure_shine.py",
+     "data": "shine_readings.csv", "folds_under": "finding-polished-shinier",
+     "value": "mean shine 12 -> 19 (delta 7)", "reproduction": "verified"},
+    {"slug": "result-per-batch-shine", "panel": "fig1b", "script": "analysis/scripts/measure_shine.py",
+     "data": "shine_readings.csv", "folds_under": "finding-polished-shinier",
+     "value": "rise present in all three batches"},
+    {"slug": "control-handled-no-rise", "panel": "fig2", "script": "analysis/scripts/handling_control.py",
+     "data": "handling_control.csv", "validates": "finding-polished-shinier",
+     "value": "handled-unpolished: no rise (a validating null)"}
+  ],
+  "finding": {"slug": "finding-polished-shinier", "outcome_for": "pred-polished-shinier", "outcome": "confirmed"}
+}

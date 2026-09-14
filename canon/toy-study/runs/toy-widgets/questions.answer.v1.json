@@ -1,0 +1,12 @@
+{
+  "questions": [
+    {
+      "id": "q1",
+      "text": "Does polishing a widget increase its shine?"
+    }
+  ],
+  "addresses": {
+    "hyp-polish-raises-shine": "q1",
+    "alt-handling-raises-shine": "q1"
+  }
+}

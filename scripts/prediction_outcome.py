@@ -61,7 +61,7 @@ import re
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from export_mira import CLAIMS_DIR, load_paper, public_papers, relations  # noqa: E402
+from export_mira import CLAIMS_DIR, load_paper, papers_on_disk, public_papers, relations  # noqa: E402
 from relations import NEUTRAL_TEST as NEUTRAL, OUTCOME  # noqa: E402
 
 # Paths here are the graph's, not this checkout's (scripts/roots.py). Deriving a root
@@ -208,7 +208,9 @@ def main():
     ap.add_argument("--bucket", help="list the items in one bucket")
     a = ap.parse_args()
 
-    slugs = [a.paper] if a.paper else public_papers()
+    # No corpus.yaml (public_papers is None) means a bare graph: scan on-disk claim dirs
+    # so an empty paper reports zero predictions rather than crashing on None.
+    slugs = [a.paper] if a.paper else (public_papers() or papers_on_disk())
     data = build(slugs)
 
     if a.write:
