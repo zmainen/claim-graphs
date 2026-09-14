@@ -1,0 +1,13 @@
+# The argument grain the composed design declares, in the shape the `modules` layer derives.
+# The induced graph (the claim files) must recover exactly this — the agreement check.
+module: q1
+kind: question
+hypotheses: [hyp-polish-raises-shine]
+alternatives:
+  - slug: alt-handling-raises-shine
+    eliminated_by: [control-handled-no-rise]
+predictions:
+  - prediction: pred-polished-shinier
+    outcome: confirmed
+domain: [scope-brass-widgets]
+apparatus: [apparatus-shine-meter]

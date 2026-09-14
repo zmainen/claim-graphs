@@ -1,0 +1,27 @@
+{
+  "note": "The ASSERTED-ABOUT way: a review adjudicates the induced graph, leaving verdicts, warrant, a caveat, a tension, an observation and one loose claim with its reason. Verdict vocabulary is the canon's `verdict` entry (keep/strike/merge-into/part-of; ok/wrong-direction/wrong-relation/strike/missing).",
+  "paper": "toy-widgets",
+  "layer": "modules",
+  "procedure_version": "v1",
+  "module_verdicts": [
+    {"module": "q1", "question": "ok", "hypothesis": "ok", "scope": "ok"}
+  ],
+  "claim_verdicts": [
+    {"slug": "finding-polished-shinier", "verdict": "keep", "warrant": "strong",
+     "why": "confirms the prediction and is validated by the handling control"},
+    {"slug": "control-handled-no-rise", "verdict": "keep", "warrant": "moderate",
+     "why": "rules out the handling alternative the design named"},
+    {"slug": "caveat-large-widgets-less", "verdict": "keep",
+     "why": "a real caveat: qualifies the finding on large widgets, does not overturn it"},
+    {"slug": "result-gloss-individual-null", "verdict": "keep",
+     "why": "in tension with the aggregate agreement; both stand"}
+  ],
+  "edge_verdicts": [
+    {"from": "control-handled-no-rise", "rel": "rules-out", "to": "alt-handling-raises-shine", "verdict": "ok"}
+  ],
+  "observations": ["obs-heavier-widgets-duller"],
+  "loose": [
+    {"slug": "loose-synth-widgets-improvable",
+     "reason": "a synthesis with no outgoing argument edge; it settles nothing until it points at what it bears on"}
+  ]
+}

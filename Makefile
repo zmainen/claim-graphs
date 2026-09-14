@@ -45,6 +45,12 @@ check:  ## Gates that are clean on main. A failure here is this change's fault.
 	# The modules derivation: the six steps on a synthetic paper, byte-stability, and the two
 	# check_relations warnings the layer adds. Builds its own corpus, so it needs no CORPUS.
 	$(PYTHON) scripts/test_modules.py
+	# The canon toy study through every mechanical layer, and composed==induced. Copies the
+	# study to a temp root, so it needs no CORPUS and modifies nothing.
+	$(PYTHON) scripts/test_canon.py
+	# The canon: every entry complete, every vocabulary term owns an entry, the contract and
+	# skill surfaces render (folded in). Needs a corpus for the folded surface checks.
+	$(PYTHON) scripts/canon.py --check
 	$(PYTHON) scripts/test_pipeline_versions.py
 	# No runner may derive a corpus path from its own location (#50).
 	$(PYTHON) scripts/test_roots.py
