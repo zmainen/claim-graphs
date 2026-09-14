@@ -1,0 +1,22 @@
+# The COMPOSED way: what preparing the study commits to before any result exists.
+# A question, the hypothesis, the one alternative raised to reject, the prediction the
+# hypothesis entails, and — the design's debt — the control that prediction owes and the
+# findings left as slots to be filled. No numbers here: nothing has been measured yet.
+question:
+  id: q1
+  text: Does polishing a widget increase its shine?
+hypothesis: hyp-polish-raises-shine
+alternatives:
+  - slug: alt-handling-raises-shine
+    to_rule_out_with: control-handled-no-rise   # the control the design owes this rival
+predictions:
+  - slug: pred-polished-shinier
+    entailed_by: hyp-polish-raises-shine
+    tested_by_slot: finding-polished-shinier     # a finding-shaped slot, filled when analysed
+owed_controls:
+  - slug: control-handled-no-rise
+    validates: finding-polished-shinier
+    rules_out: alt-handling-raises-shine
+planned_scope:
+  domain: [scope-brass-widgets]
+  apparatus: [apparatus-shine-meter]
