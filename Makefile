@@ -23,6 +23,10 @@ check:  ## Gates that are clean on main. A failure here is this change's fault.
 	cd extract && $(PYTHON) -c "import claim_graphs.cli, claim_graphs.edges, claim_graphs.layers, claim_graphs.write, claim_graphs.sources"
 	cd extract && $(PYTHON) tests/test_layer_contract.py
 	cd extract && $(PYTHON) tests/test_sources.py
+	cd extract && $(PYTHON) tests/test_pandoc_source.py
+	# The flat-text branch of prepare(). No corpus here exercises it — every eLife paper is
+	# JATS — which is how it sat broken for the life of the repository (#47).
+	cd extract && $(PYTHON) tests/test_flat_text_path.py
 	cd extract && $(PYTHON) tests/test_claimset.py
 	$(PYTHON) scripts/standards_report.py --check
 	node js/test-claim-set.mjs

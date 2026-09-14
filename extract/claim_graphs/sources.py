@@ -23,6 +23,8 @@ from __future__ import annotations
 import hashlib
 import logging
 import re
+import shutil
+import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal, Protocol, runtime_checkable
@@ -51,6 +53,10 @@ class Resolved:
     url: str | None = None
     doc_id: str | None = None          # the publisher's own id, where it has one
     sha256: str = ""
+    # Set only when the file `path` points at was produced from `ref` rather than being it —
+    # a conversion. Left None by every source that returns the document it was given, so
+    # their `note` is unchanged to the byte and no existing corpus is marked stale.
+    via: str | None = None
 
     # The exact wording matters: it is written into runs/<paper>/prepared.json, the ledger
     # hashes that file, and a cosmetic change would mark every paper stale.
@@ -60,7 +66,8 @@ class Resolved:
     def note(self) -> str:
         """One line for `PreparedPaper.extraction_path_note`."""
         where = self.url or f"local file at {self.path}"
-        return f"{self.FORMAT_LABEL.get(self.format, self.format.upper())} from {where}"
+        label = self.FORMAT_LABEL.get(self.format, self.format.upper())
+        return f"{label} from {where}" + (f", converted by {self.via}" if self.via else "")
 
 
 @runtime_checkable
@@ -161,7 +168,106 @@ class FileSource:
                         doc_id=None, sha256=sha256_of(path))
 
 
-BUILT_IN: tuple[type, ...] = (ElifeSource, FileSource)
+class PandocSource:
+    """A manuscript in a format pandoc reads, converted to JATS on the way in.
+
+    `prepare()` has two branches and they are not equal. JATS goes to `parse_jats`, which reads
+    labelled structure — abstract, sections by their titles, captions bound to figure ids,
+    tables with their rows. Everything else falls to flat text and regex. So the useful question
+    for a new format is not "can we parse it" but "how does it reach the structured branch",
+    and for every format pandoc reads the answer is: pandoc already writes JATS.
+
+    That buys Markdown, Word, LaTeX, HTML and OpenDocument for the cost of a subprocess, and
+    none of them needs a parser here. PDF is not among them — pandoc does not read PDF — which
+    is why the flat-text path still exists and is still the lossy one.
+
+    WHAT SURVIVES DIFFERS BY FORMAT, and the difference is metadata, not prose. Body sections
+    come through from all of them: results and methods slice the same from .md, .docx, .html
+    and .tex. Title and abstract come through only where the source format records them as
+    metadata rather than as a heading — Markdown with YAML front matter carrying `title:` and
+    `abstract:` is the case that keeps everything, .docx keeps the title, and .html and .tex
+    arrive with neither. An `# Abstract` heading is a section like any other and does not
+    become `<abstract>`, so a document written that way prepares with an empty abstract slice
+    and no error. Prefer Markdown with front matter where there is a choice.
+    """
+
+    name = "pandoc"
+
+    # Deliberately not .xml/.nxml/.pdf: FileSource claims those, is registered ahead of this
+    # one, and round-tripping JATS through pandoc would lose structure it already has.
+    SUFFIXES = frozenset({".md", ".markdown", ".docx", ".tex", ".latex",
+                          ".html", ".htm", ".odt", ".rst", ".epub"})
+
+    # pandoc's reader is usually its own name for the suffix; where it is not, say so.
+    READER = {".md": "markdown", ".markdown": "markdown", ".tex": "latex", ".latex": "latex",
+              ".htm": "html"}
+
+    def handles(self, ref: str) -> bool:
+        p = Path(str(ref)).expanduser()
+        return p.suffix.lower() in self.SUFFIXES and p.is_file()
+
+    @staticmethod
+    def _pandoc() -> str:
+        """The pandoc binary, or a refusal that names it.
+
+        A source that quietly declined here would leave `for_ref` reporting "no source handles
+        this reference", which sends the reader to look for a missing adapter rather than a
+        missing program.
+        """
+        exe = shutil.which("pandoc")
+        if exe is None:
+            raise RuntimeError(
+                "pandoc is not installed, and it is what converts this format to JATS. "
+                "Install it (https://pandoc.org/installing.html), or pass JATS XML directly."
+            )
+        return exe
+
+    @classmethod
+    def _version(cls, exe: str) -> str:
+        out = subprocess.run([exe, "--version"], capture_output=True, text=True, timeout=30)
+        return (out.stdout.splitlines() or ["pandoc"])[0].strip()
+
+    def resolve(self, ref: str, cache_dir: Path | None = None,
+                prefer: Format | None = None) -> Resolved:
+        path = Path(str(ref)).expanduser().resolve()
+        if not path.is_file():
+            raise FileNotFoundError(path)
+        if prefer and prefer != "jats":
+            raise ValueError(f"{path.name} can only be offered as jats, not {prefer}")
+
+        exe = self._pandoc()
+        digest = sha256_of(path)
+        cache_dir = Path(cache_dir or DEFAULT_CACHE_DIR) / "pandoc"
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        # Named by the source's own hash, so editing the manuscript converts again and leaving
+        # it alone does not.
+        out = cache_dir / f"{path.stem}-{digest[:16]}.jats.xml"
+
+        if not (out.is_file() and out.stat().st_size > 0):
+            reader = self.READER.get(path.suffix.lower(), path.suffix.lower().lstrip("."))
+            logger.info("converting %s to JATS with pandoc", path.name)
+            # --wrap=none: pandoc otherwise wraps long lines, and a wrap inside <article-title>
+            # puts a newline in the middle of the paper's title.
+            proc = subprocess.run(
+                [exe, str(path), "-f", reader, "-t", "jats", "-s", "--wrap=none",
+                 "-o", str(out)],
+                capture_output=True, text=True, timeout=300)
+            if proc.returncode != 0:
+                out.unlink(missing_ok=True)
+                raise RuntimeError(
+                    f"pandoc could not convert {path.name} to JATS "
+                    f"(exit {proc.returncode}): {proc.stderr.strip()[:400]}")
+
+        # The hash is of the manuscript, not of the conversion. Staleness asks whether the
+        # input changed; hashing pandoc's output would make every ledger record depend on the
+        # pandoc version instead, and re-running after an upgrade would mark papers stale for a
+        # reason that has nothing to do with them. The version goes in the note, where a reader
+        # can see it without it being load-bearing.
+        return Resolved(path=out, format="jats", ref=str(ref), source=self.name,
+                        doc_id=None, sha256=digest, via=self._version(exe))
+
+
+BUILT_IN: tuple[type, ...] = (ElifeSource, FileSource, PandocSource)
 
 
 def registry() -> list[Source]:
@@ -191,7 +297,8 @@ def for_ref(ref: str) -> Source:
     raise ValueError(
         f"no source handles {ref!r}. Built-in sources: "
         f"{', '.join(cls.name for cls in BUILT_IN)}. "
-        f"Pass a local PDF or XML path, or register a source in the "
+        f"Pass a DOI, a local PDF or JATS XML path, a manuscript in a format pandoc reads "
+        f"({', '.join(sorted(PandocSource.SUFFIXES))}), or register a source in the "
         f"{SOURCE_ENTRY_POINT_GROUP!r} entry point group."
     )
 
