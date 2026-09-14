@@ -136,6 +136,74 @@ def test_declaration_version_is_a_function_of_entry_and_reads():
         pipeline.ROOT, pipeline.MACHINERY = old, old_m
 
 
+def test_governs_narrows_the_declaration_hash_to_what_the_ruling_is_about():
+    """A read that only implements the ruling must not lapse it.
+
+    This is the failure that cost every ruling in the corpus: relation-vocab was accepted at
+    13:22 and superseded at 14:13 by the commit that wrote the accepted decision into
+    scripts/relations.py. Under `governs: []` the entry's prose is the decision and the
+    implementation is free to change beneath it — which is what lets a ruling and a working
+    implementation be held at the same time.
+    """
+    old, old_m = pipeline.ROOT, pipeline.MACHINERY
+    try:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            decl = _decl(root)
+            rv = dict(decl["by_id"]["relation-vocab"])
+
+            # governs: [] — the implementation moves, the ruling does not.
+            rv["governs"] = []
+            v = pipeline.declaration_version(rv)
+            _touch(root, "scripts/relations.py", "EDGE_KEYS = ['supports', 'tests']\n")
+            assert pipeline.declaration_version(rv) == v
+
+            # governs naming the file — it moves, as `reads` used to for everything.
+            rv2 = dict(decl["by_id"]["relation-vocab"])
+            rv2["governs"] = ["scripts/relations.py"]
+            v2 = pipeline.declaration_version(rv2)
+            _touch(root, "scripts/relations.py", "EDGE_KEYS = ['supports', 'tests', 'refutes']\n")
+            assert pipeline.declaration_version(rv2) != v2
+    finally:
+        pipeline.ROOT, pipeline.MACHINERY = old, old_m
+
+
+def test_a_layer_without_governs_hashes_exactly_as_it_did():
+    """Absent means `reads`, so nothing loosens for a layer nobody has looked at.
+
+    `governs: []` and no `governs:` at all are different declarations — one says no file
+    carries the decision, the other says nobody has said — so the fallback is keyed on the
+    key's presence, not on its truthiness.
+    """
+    old, old_m = pipeline.ROOT, pipeline.MACHINERY
+    try:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            decl = _decl(root)
+            rv = decl["by_id"]["relation-vocab"]
+            assert "governs" not in rv
+            assert pipeline.governs_of(rv) == rv["reads"] == ["scripts/relations.py"]
+            v = pipeline.declaration_version(rv)
+            _touch(root, "scripts/relations.py", "EDGE_KEYS = ['supports', 'tests']\n")
+            assert pipeline.declaration_version(rv) != v       # the old behaviour, exactly
+    finally:
+        pipeline.ROOT, pipeline.MACHINERY = old, old_m
+
+
+def test_every_governs_entry_is_also_read():
+    """A file that carries the decision must also be hashed for staleness.
+
+    `governs` narrows what lapses a *ruling*; it must never narrow what makes a *cell* stale.
+    A path in `governs` and not in `reads` would be hashed into the declaration version and
+    never into any run record, so the file could change with the corpus reporting current.
+    """
+    decl = pipeline.load()
+    for lid, layer in decl["by_id"].items():
+        reads = set(layer.get("reads") or [])
+        for g in (layer.get("governs") or []):
+            assert g in reads, f"{lid}: governs names {g}, which is not in its reads"
+
+
 def test_declaration_state_open_accepted_superseded():
     old, old_m = pipeline.ROOT, pipeline.MACHINERY
     try:

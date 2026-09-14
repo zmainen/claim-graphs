@@ -602,17 +602,64 @@ def read_corpus_approvals() -> list[dict]:
 
 
 def declaration_version(layer: dict) -> str:
-    """The hash of a layer's declaration: its entry, plus the files that define its meaning.
+    """The hash of a layer's declaration: its entry, plus the files the ruling is *about*.
 
-    Those files are the layer's `reads` — the prompt task, the contract, the relation
-    vocabulary — the same paths a run hashes to go stale, so a ruling made under one wording is
-    a ruling under that wording and no other.
+    Those files are `governs`, a subset of `reads`. The two used to be the same list, on the
+    reasoning that a ruling made under one wording is a ruling under that wording and no other.
+    That is true of wording and false of everything else `reads` names, and the difference cost
+    every ruling this corpus has:
+
+        13:22  relation-vocab accepted — "once #125 and #28 were written in"
+        14:13  8414ae8 writes #125 into scripts/relations.py
+               relations.py is in `reads` → the hash moves → the approval reads superseded
+
+    Carrying a ruling out is indistinguishable from revising it under a content hash, so the
+    gate stood at nought accepted of thirty-five with six rulings genuinely made: no true
+    positive, six false ones. A gate that has never been right and is red on everything carries
+    no information, and it teaches re-approval as a reflex — `runs/approvals.jsonl` already
+    holds two lines doing exactly that.
+
+    This is the same correction #54 made one grain down, for the same reason: a claim approval
+    named a run version and lapsed whenever the layer ran, which is right for an output and
+    wrong for a proposition. As there, each exclusion earns its place:
+
+      implementations — scripts/relations.py, prediction_outcome.py, warrant.py — are the
+      ruling carried out. Drift between them and the ruled meaning is real, and it is caught
+      by check_relations.py and the contract tests, continuously and loudly, which is a better
+      instrument than a hash that cannot say what changed.
+
+      generated files — extract/prompts/contract/*, docs/schema-mapping/claim-relations.ttl —
+      say "Do not edit; edit the source and regenerate". Their content is a function of their
+      sources, so they carry no decision of their own; ruling on one would be ruling on a
+      derivative.
+
+      checkers — check_relations.py — enforce the ruling rather than state it.
+
+    What stays is hand-written text that *is* the decision: docs/claim-format.md for the claim
+    format, and each model-answered layer's own task prompt, which is what the model is told a
+    part or a question or a warrant is.
+
+    The entry itself is still hashed whole. Nothing has yet lapsed a ruling through it — all six
+    lapses here were file-driven — so narrowing it would be a change with no evidence behind it.
+
+    A layer with no `governs` key falls back to `reads`, which is the old behaviour exactly, so
+    this loosens nothing that has not been looked at.
     """
     h = hashlib.sha256()
     h.update(json.dumps(layer, sort_keys=True, default=str).encode("utf-8"))
-    for r in (layer.get("reads") or []):
+    for r in governs_of(layer):
         h.update(f"{r}:{digest(r)}".encode("utf-8"))
     return h.hexdigest()[:12]
+
+
+def governs_of(layer: dict) -> list[str]:
+    """The files a ruling on this layer is about: `governs` if declared, else all of `reads`.
+
+    `governs: []` is a declaration that no file carries the decision — the entry's own prose
+    does — and is distinct from the key being absent, so the test is membership rather than
+    truthiness.
+    """
+    return list(layer["governs"] or []) if "governs" in layer else list(layer.get("reads") or [])
 
 
 def approve_declaration(layer_id: str, version: str, *, by: str, note: str = "") -> dict:
