@@ -36,7 +36,10 @@ Role = Literal[
     "interpretation",
     "literature-context",
 ]
-AgentName = Literal["results", "caption", "structure", "reviewer"]
+# `evidence` and `argument` are the perspective readers: two views of the WHOLE document,
+# where the first three are three disjoint slices of an IMRaD one. See agents.py.
+AgentName = Literal["results", "caption", "structure", "reviewer",
+                    "evidence", "argument"]
 AgentConfidence = Literal["high", "tentative"]
 ReconciledConfidence = Literal["high", "contested", "single-source"]
 
@@ -99,8 +102,10 @@ class ReconciledClaim(BaseModel):
         "A fact about agreement: single-source for one reader, high for several who agree, "
         "contested for several who disagree."))
     sources: list[AgentName] = Field(..., description=(
-        "The readers that surfaced this claim: results, caption, structure; reviewer for a "
-        "claim the review pass added."))
+        "The readers that surfaced this claim. From the slice readers: results, caption, "
+        "structure; reviewer for a claim the review pass added. From the perspective readers: "
+        "evidence, argument — where a converged table records the side in `origin` as well, "
+        "because for two readings of one whole document the count is the less informative half."))
     evidence_by_agent: dict[AgentName, str] = Field(default_factory=dict, description=(
         "For each reader in sources, the verbatim quote it gave."))
     span_by_agent: dict[AgentName, str] = Field(default_factory=dict, description=(
@@ -117,6 +122,30 @@ class ReconciledClaim(BaseModel):
         "component of — one comparison, condition, measure or study of a proposition that "
         "claim states whole. Keep both; the writer resolves the sentence to the whole's slug "
         "and writes `part-of`. null when this claim is not a part of another."))
+
+
+ClaimOrigin = Literal["both", "argument-only", "evidence-only"]
+
+
+class ConvergedClaim(ReconciledClaim):
+    """A reconciled claim that also records which reading it came from.
+
+    A subclass rather than a field on `ReconciledClaim`, so that `reconcile` keeps writing the
+    bytes it has always written. Adding an optional field to the shared model would put
+    `"origin": null` into every `reconciler.output.json` in every corpus and move a hash the
+    ledger reads, for a value the slice readers cannot produce.
+
+    `origin` replaces `confidence` as the thing worth reading. The count of readers who found a
+    claim was never measuring attestation — two readings of one document converge cheaply, and
+    two readings of disjoint slices can hardly converge at all — whereas the side a claim came
+    from names a defect: `argument-only` is an assertion with nothing shown for it,
+    `evidence-only` a result no argument uses. Both are legitimate in quantity for some kinds
+    of document, which is the reason to show the shape rather than average it away.
+    """
+
+    origin: ClaimOrigin = Field(..., description=(
+        "Which reading surfaced this claim: `both`, `argument-only`, or `evidence-only`. Not a "
+        "quality score — see the task prompt for what each one means about the document."))
 
 
 class DraftClaimTable(BaseModel):
@@ -180,3 +209,9 @@ class ReviewPatch(BaseModel):
     additions: list[ReconciledClaim] = Field(default_factory=list, description=(
         "Zero or more new claims to append to the draft; each must carry "
         "confidence=single-source and sources=[reviewer]."))
+
+
+class ConvergedClaimTable(DraftClaimTable):
+    """A draft table whose claims carry `origin`. Defined after the table it extends."""
+
+    claims: list[ConvergedClaim] = Field(..., description="The converged claims.")

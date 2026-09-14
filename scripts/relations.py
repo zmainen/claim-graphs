@@ -96,8 +96,11 @@ DIRECTION = {
     "contradicts": "from either claim to the other; they cannot both hold",
     "opposes": "from the claim that stands against to the one it stands against",
     "refutes": "from the result to the prediction it came out against — the negative outcome of a test, aimed at a prediction only",
-    "rules-out": "from the control or evidence to the alternative explanation it eliminates — a claim "
-                 "the paper entertains or rejects, never one it asserts",
+    "rules-out": "from the evidence to the alternative explanation it eliminates — a claim "
+                 "the paper entertains or rejects, never one it asserts. The evidence may be "
+                 "the paper's own (`empirical`, `control`) or inherited (`literature-context`), "
+                 "which is how a review eliminates anything. Elimination carried by argument "
+                 "rather than by evidence is `opposes`",
     "dissociates-with": "symmetric: between the two empirical claims that together establish the contrast",
     "in-tension-with": "symmetric: between two claims the paper asserts whose implications pull against each other",
     "entails": "from the hypothesis to the prediction it deductively implies",

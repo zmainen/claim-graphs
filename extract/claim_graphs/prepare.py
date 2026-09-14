@@ -213,6 +213,44 @@ class PreparedPaper:
             lines.append(f"{t.panel_id()}: {t.panel_id()} — {_caption_head(t.text)}")
         return "\n".join(lines)
 
+    def part_inventory(self) -> str:
+        """Every part of this document a claim could be anchored to, in the document's own names.
+
+        `panel_inventory` lists figures and tables, which is the whole inventory of a paper
+        whose evidence is figures — and nothing at all for a document whose evidence is not. A
+        review has two schematics and a hundred citations; a grant has aims and preliminary
+        data; a preprint may carry its numbers in running prose. The evidence-first reader is
+        asked what each part establishes, so it needs the parts that exist rather than the parts
+        an IMRaD paper would have.
+
+        Derived, not stored: every line here comes from what `prepare` already extracted. A new
+        field on `PreparedPaper` would add a key to every `prepared.json` in every corpus and
+        change a hash the ledger reads, for a string that can be recomputed at no cost.
+        """
+        from .coverage import extract_statistics
+
+        lines: list[str] = []
+        floats = self.panel_inventory()
+        if floats:
+            lines += ["## Figures and tables", "", floats]
+        stats = extract_statistics(self)
+        if stats:
+            lines += ["", "## Reported values",
+                      "", "Each is quoted verbatim from the slice named beside it. A claim that "
+                      "states one of these must state it in these words.", ""]
+            seen: set[str] = set()
+            for st in stats:
+                key = st.text.strip()
+                if key in seen:
+                    continue
+                seen.add(key)
+                lines.append(f"- {key}  ({st.where})")
+        blocks = [(name, text) for name, text in self.sections()]
+        if blocks:
+            lines += ["", "## Text the document has",
+                      "", ", ".join(f"{n} ({len(t)}c)" for n, t in blocks)]
+        return "\n".join(lines).strip()
+
 
 @dataclass
 class FigureCaption:

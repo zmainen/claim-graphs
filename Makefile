@@ -30,6 +30,8 @@ check:  ## Gates that are clean on main. A failure here is this change's fault.
 	# A paper that is not IMRaD. No corpus here exercises that either: every eLife paper has a
 	# Results section, and a review's body was dropped whole.
 	cd extract && $(PYTHON) tests/test_non_imrad_sections.py
+	# Two readings of one whole document, and the vocabulary that had to grow to hold them.
+	cd extract && $(PYTHON) tests/test_perspective_readers.py
 	# The bootstrap index a new paper needs is not evidence its claim tree ran.
 	$(PYTHON) scripts/test_not_evidence.py
 	cd extract && $(PYTHON) tests/test_claimset.py

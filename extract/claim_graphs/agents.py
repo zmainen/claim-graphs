@@ -100,6 +100,11 @@ def verify_evidence(quote: str, span: str | None, spans: dict[str, str],
 NO_STRUCTURE = ("This paper has no methods, appendix or supplementary sections. "
                 "Return an empty list.")
 
+# Every section the segmenter cuts, procedural ones included: a perspective reader is not
+# defined by a slice, so nothing is withheld from it.
+_WHOLE_DOCUMENT = ("abstract", "introduction", "results", "argument", "discussion",
+                   "captions", "tables", "methods", "appendix", "supplementary")
+
 _RESULTS_SECTIONS = ("abstract", "introduction", "results", "argument", "discussion")
 
 
@@ -142,6 +147,24 @@ def slice_for_agent(agent: AgentName, paper: PreparedPaper) -> str:
         if paper.tables_text:
             parts.append(f"# Tables\n\n{paper.tables_text}")
         return "\n\n".join(parts)
+    # ── the perspective readers ──────────────────────────────────────────────
+    # Both are given the whole document. The three readers above are three disjoint slices, so
+    # what `reconcile` grades as their "agreement" is really the chance that one proposition
+    # appeared in two different parts of the text — an artifact of where the cuts fell, which
+    # collapses entirely on a document with no captions and no methods. Two readings of the
+    # same whole cannot agree by that accident. Where they converge, the argument and the
+    # evidence meet; where they diverge, the asymmetry names the defect (see scripts/asymmetry.py).
+    if agent == "evidence":
+        parts = []
+        inventory = paper.part_inventory()
+        if inventory:
+            parts.append(f"# The parts of this document\n\n{inventory}")
+        parts.append(f"# The document\n\n{_render_spans(paper, _WHOLE_DOCUMENT)}")
+        return "\n\n".join(parts)
+    if agent == "argument":
+        # No inventory: the argument reader is asked what the document commits to and why, and
+        # a list of panels in front of that invites it to anchor claims rather than connect them.
+        return f"# The document\n\n{_render_spans(paper, _WHOLE_DOCUMENT)}"
     if agent == "structure":
         parts = [f"# {head}\n\n{text}" for head, text in
                  (("Methods", paper.methods_text), ("Appendices", paper.appendix_text),
@@ -164,6 +187,11 @@ def raw_slice_for_agent(agent: AgentName, paper: PreparedPaper) -> str:
     if agent == "results":
         blocks = [paper.abstract, paper.introduction_text, paper.results_text,
                   paper.argument_text, paper.discussion_text]
+    elif agent in ("evidence", "argument"):
+        blocks = [paper.abstract, paper.introduction_text, paper.results_text,
+                  paper.argument_text, paper.discussion_text, paper.captions_text,
+                  paper.tables_text, paper.methods_text, paper.appendix_text,
+                  paper.supplementary_text]
     elif agent == "caption":
         blocks = [paper.captions_text, paper.tables_text]
     elif agent == "structure":

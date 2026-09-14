@@ -26,7 +26,7 @@ Each element of `claims`:
 | `role` | `hypothesis` / `prediction` / `empirical` / `control` / `scope` / `methodological` / `synthesis` / `interpretation` / `literature-context` | See the vocabulary. |
 | `addresses` (optional) | `string` or `null` | For a hypothesis or an alternative explanation, the research question it answers, as the paper states it or in one sentence; null for every other role. |
 | `confidence` | `high` / `contested` / `single-source` | A fact about agreement: single-source for one reader, high for several who agree, contested for several who disagree. |
-| `sources` | list of `results` / `caption` / `structure` / `reviewer` | The readers that surfaced this claim: results, caption, structure; reviewer for a claim the review pass added. |
+| `sources` | list of `results` / `caption` / `structure` / `reviewer` / `evidence` / `argument` | The readers that surfaced this claim. From the slice readers: results, caption, structure; reviewer for a claim the review pass added. From the perspective readers: evidence, argument — where a converged table records the side in `origin` as well, because for two readings of one whole document the count is the less informative half. |
 | `evidence_by_agent` (optional) | object | For each reader in sources, the verbatim quote it gave. |
 | `span_by_agent` (optional) | object | For each reader in sources that cited one, the span id its evidence quote came from. |
 | `evidence_verified` (optional) | object | Filled by the runner. Leave null. |
