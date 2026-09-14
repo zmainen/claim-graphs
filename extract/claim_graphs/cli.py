@@ -1027,9 +1027,10 @@ def build_parser() -> argparse.ArgumentParser:
                         help="Paper DOI. Defaults to the one in claims/<paper>/index.md, "
                              "which a new paper does not have yet.")
     p_prep.add_argument("--pdf-path", default=None,
-                        help="A local PDF, for a paper that is not on the eLife CDN.")
+                        help="A local PDF, for a paper no registered source can resolve.")
     p_prep.add_argument("--input-format", choices=["auto", "jats", "pdf"], default="auto",
-                        help="Input source (default: auto = jats for eLife DOIs).")
+                        help="Input format (default: auto = whichever registered source "
+                             "claims the reference decides).")
     _add_common_args(p_prep)
     p_prep.set_defaults(func=cmd_prepare)
 
