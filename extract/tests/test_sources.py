@@ -350,6 +350,58 @@ def test_segment_reads_the_vocabulary_rather_than_restating_it():
             f"segment() names the section {name!r} itself; it should read SECTIONS")
 
 
+
+def test_a_relative_reference_resolves_against_the_graph_not_the_cwd():
+    """A paper's reference is copied into every claim file, so it must not be one machine's path.
+
+    Before this, both local sources resolved a reference against the working directory — which
+    differs between `extract/` and the repository root depending on which command is running —
+    so an absolute path was the only reference that worked anywhere, and it then appeared
+    verbatim in every `assertions:` block the tree wrote.
+    """
+    import os
+
+    with tempfile.TemporaryDirectory() as d:
+        root = Path(d)
+        (root / "sources").mkdir()
+        doc = root / "sources" / "paper.xml"
+        doc.write_text("<article><body/></article>", encoding="utf-8")
+        saved = os.environ.get("CLAIM_GRAPHS_ROOT")
+        try:
+            os.environ["CLAIM_GRAPHS_ROOT"] = str(root)
+            # .resolve() on both sides: the graph root is canonicalised, and on macOS a temp
+            # dir reaches it through the /var -> /private/var symlink.
+            assert (sources.local_path("sources/paper.xml").resolve()
+                    == (root / "sources" / "paper.xml").resolve())
+            assert sources.FileSource().handles("sources/paper.xml")
+            # and the reference is kept as written, so the tree records the portable form
+            assert sources.FileSource().resolve("sources/paper.xml").ref == "sources/paper.xml"
+        finally:
+            if saved is None:
+                os.environ.pop("CLAIM_GRAPHS_ROOT", None)
+            else:
+                os.environ["CLAIM_GRAPHS_ROOT"] = saved
+
+
+def test_an_absolute_reference_still_works():
+    """Nothing that resolved before stops resolving: an absolute path bypasses the graph root."""
+    import os
+
+    with tempfile.TemporaryDirectory() as d:
+        doc = Path(d) / "paper.xml"
+        doc.write_text("<article><body/></article>", encoding="utf-8")
+        saved = os.environ.get("CLAIM_GRAPHS_ROOT")
+        try:
+            os.environ["CLAIM_GRAPHS_ROOT"] = "/nonexistent-graph-root"
+            assert sources.local_path(str(doc)) == doc
+            assert sources.FileSource().handles(str(doc))
+        finally:
+            if saved is None:
+                os.environ.pop("CLAIM_GRAPHS_ROOT", None)
+            else:
+                os.environ["CLAIM_GRAPHS_ROOT"] = saved
+
+
 if __name__ == "__main__":
     import traceback
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]

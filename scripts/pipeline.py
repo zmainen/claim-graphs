@@ -778,7 +778,12 @@ def state(decl: dict | None = None, slugs: list[str] | None = None) -> dict:
                 continue
 
             run = _latest(entries, lid)
-            produced = [r for r in expand(layer.get("produces"), paper) if digest(r)]
+            # `not_evidence` names paths that match `produces` but do not show the layer ran —
+            # a file the paper was bootstrapped with rather than one a run wrote. See the note
+            # on `claim-tree` in pipeline/layers.yaml.
+            not_evidence = set(expand(layer.get("not_evidence"), paper))
+            produced = [r for r in expand(layer.get("produces"), paper)
+                        if digest(r) and r not in not_evidence]
 
             # Propagation, and the reason the graph is walked in dependency order. Only
             # staleness propagates: an input that *changed* since the run makes this output
