@@ -526,6 +526,75 @@ def approvals_path(paper: str) -> str:
     return os.path.join(ROOT, "runs", paper, "approvals.jsonl")
 
 
+def claim_approvals_path(paper: str) -> str:
+    return os.path.join(ROOT, "runs", paper, "claim-approvals.jsonl")
+
+
+# The claim files need not sit under the graph root: a corpus may keep them elsewhere, and the
+# package's contract.claims_dir reads the same variable.
+CLAIMS = os.path.abspath(os.path.expanduser(
+    os.environ.get("CLAIM_GRAPHS_CORPUS_DIR") or os.path.join(ROOT, "claims")))
+
+
+def claim_path(paper: str, slug: str) -> str:
+    return os.path.join(CLAIMS, paper, f"{slug}.md")
+
+
+def _claim_hash(paper: str, slug: str) -> str | None:
+    """The claim's content hash, from the package beside this runner."""
+    sys.path.insert(0, os.path.join(MACHINERY, "extract"))
+    from claim_graphs.claim_approval import hash_of_file      # noqa: PLC0415
+    return hash_of_file(claim_path(paper, slug))
+
+
+def approve_claim(paper: str, slug: str, *, by: str, note: str = "") -> dict:
+    """Record that a person judged one claim, against the content they judged.
+
+    Unlike a layer approval this is not granted to a version. A claim is a proposition, and
+    re-running the chain does not undo a judgement about it — but changing what the claim says
+    does. The hash is what makes that difference expressible: it covers the claim sentence, its
+    type and role, and what it is asserted about, and not the fields layers compute. See
+    claim_graphs/claim_approval.py for what is in it and why each excluded field is excluded.
+    """
+    digest = _claim_hash(paper, slug)
+    if digest is None:
+        raise SystemExit(f"error: no claim {slug!r} in {paper}")
+    rec = {"slug": slug, "hash": digest, "by": by, "note": note,
+           "when": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")}
+    p = claim_approvals_path(paper)
+    os.makedirs(os.path.dirname(p), exist_ok=True)
+    with open(p, "a", encoding="utf-8") as fh:
+        fh.write(json.dumps(rec, sort_keys=True) + "\n")
+    return rec
+
+
+def read_claim_approvals(paper: str) -> dict[str, dict]:
+    """The standing approval per claim, with whether it still applies.
+
+    Last record wins, so re-approving after an edit supersedes rather than duplicates.
+    `applies` is False when the claim has changed since: the judgement was real and is recorded,
+    and it was made about something this claim no longer says.
+    """
+    out: dict[str, dict] = {}
+    p = claim_approvals_path(paper)
+    if not os.path.isfile(p):
+        return out
+    with open(p, encoding="utf-8") as fh:
+        for line in fh:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                rec = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if rec.get("slug"):
+                out[rec["slug"]] = rec
+    for slug, rec in out.items():
+        rec["applies"] = (_claim_hash(paper, slug) == rec.get("hash"))
+    return out
+
+
 def read_approvals(paper: str) -> list[dict]:
     """Approvals recorded for this paper's layer versions.
 
@@ -1210,6 +1279,8 @@ def cmd_approve(args) -> int:
     """
     if args.declaration:
         return cmd_approve_declaration(args)
+    if args.claim:
+        return cmd_approve_claim(args)
     if not args.paper or not args.layer:
         print("error: approve needs <paper> <layer>, or --declaration <layer>",
               file=sys.stderr)
@@ -1239,6 +1310,47 @@ def cmd_approve(args) -> int:
     print(f"{args.paper}/{args.layer} v{v} approved by {rec['by']}{current}")
     if rec["note"]:
         print(f"  {rec['note']}")
+    return 0
+
+
+def cmd_approve_claim(args) -> int:
+    """Approve one claim, or every claim in a paper with --claim all.
+
+    The two grains answer different questions and are worth holding apart. A claim-tree
+    approval says the argument is a fair reading of the paper; a claim approval says this
+    proposition is true of it. Someone can reasonably grant either without the other.
+    """
+    if not args.paper:
+        print("error: approve --claim needs <paper>", file=sys.stderr)
+        return 2
+    if args.paper not in papers():
+        print(f"error: no paper {args.paper!r}", file=sys.stderr)
+        return 2
+
+    if args.claim == "all":
+        slugs = sorted(os.path.splitext(os.path.basename(f))[0]
+                       for f in glob.glob(os.path.join(CLAIMS, args.paper, "*.md"))
+                       if os.path.basename(f) != "index.md")
+    else:
+        slugs = [args.claim]
+
+    standing = read_claim_approvals(args.paper)
+    done = skipped = 0
+    for slug in slugs:
+        if not os.path.isfile(claim_path(args.paper, slug)):
+            print(f"error: no claim {slug!r} in {args.paper}", file=sys.stderr)
+            return 2
+        prior = standing.get(slug)
+        if prior and prior.get("applies") and not args.again:
+            skipped += 1
+            continue
+        rec = approve_claim(args.paper, slug, by=args.by, note=args.note or "")
+        done += 1
+        if len(slugs) == 1:
+            print(f"approved {slug} @ {rec['hash']} — by {rec['by']} on {rec['when'][:10]}")
+    if len(slugs) > 1:
+        print(f"approved {done} claim(s) in {args.paper}"
+              + (f"; {skipped} already stood (use --again to re-approve)" if skipped else ""))
     return 0
 
 
@@ -1520,6 +1632,13 @@ def main() -> int:
     a.add_argument("layer", nargs="?", help="the layer (omit with --declaration)")
     a.add_argument("--declaration", metavar="LAYER",
                    help="record a scheme ruling on this layer's declaration instead")
+    a.add_argument("--claim", metavar="SLUG",
+                   help="approve one claim instead of a layer, or `all` for every claim in the "
+                        "paper. A claim approval names the claim's content hash rather than a "
+                        "version, so it survives a re-run that leaves the claim saying the same "
+                        "thing and lapses when it does not.")
+    a.add_argument("--again", action="store_true",
+                   help="re-approve claims whose approval already stands")
     a.add_argument("--by", required=True, help="who decided")
     a.add_argument("--v", type=int, help="which version (default: the one on the ledger)")
     a.add_argument("--note", help="what they checked")

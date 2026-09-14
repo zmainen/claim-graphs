@@ -28,6 +28,9 @@ check:  ## Gates that are clean on main. A failure here is this change's fault.
 	# JATS — which is how it sat broken for the life of the repository (#47).
 	cd extract && $(PYTHON) tests/test_flat_text_path.py
 	cd extract && $(PYTHON) tests/test_claimset.py
+	# What a claim approval is granted to. Every field wrongly in the hash voids real
+	# judgements for a reason unrelated to them.
+	cd extract && $(PYTHON) tests/test_claim_approval.py
 	$(PYTHON) scripts/standards_report.py --check
 	node js/test-claim-set.mjs
 	cd extract && $(PYTHON) tests/test_prompt_contract.py
