@@ -77,6 +77,26 @@ paper **asserts**; it is not `contradicts` (both claims hold), not `qualifies` (
 the other), and not `rules-out` (nothing is eliminated). Do not fail to surface a real tension:
 a paper usually resolves one in its discussion, and an unresolved one is a gap worth seeing.
 
+## A synthesis points outward, and a bounded result says what it bounds
+
+Two edges are easy to leave off, and both hide a claim from the argument the paper is making.
+
+**A synthesis or interpretation must carry an argument edge outward.** A claim that integrates
+several results — a `synthesis` or an `interpretation` — earns its place by what it does to the
+argument, not by what feeds it. So it must point at something: `supports` the hypothesis it
+argues for, `rules-out` an alternative it eliminates, or `interprets` the member it reframes.
+The results beneath it are its details and belong under it, but they are not its reason for
+being on the page. A synthesis with only incoming edges is loose — it aggregates evidence and
+then does nothing with it — so give it the outward edge that says what it settles.
+
+**A result you will not confirm still gets the edge that says what it bears on.** When a result
+was run to test a prediction but you judge it does not settle that prediction — an uncorrected
+cluster, an effect that does not survive, a measure that only partly meets the commitment — do
+not write `confirms`, and do not leave it wired to nothing. It still bounds a finding: write
+`qualifies` from the result to the claim whose applicability it narrows. `qualifies` is the edge
+for a result that bounds a finding without supporting it; declining to confirm is a verdict, and
+a verdict that leaves no edge leaves the result invisible to the argument.
+
 ## Look for unsupported parts of the argument
 
 Then look for parts of the argument that rest on nothing: a hypothesis with no prediction tested,

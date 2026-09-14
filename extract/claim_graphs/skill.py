@@ -102,7 +102,15 @@ def _chain(root: Path, target: str) -> list[dict]:
 # exactly what the first end-to-end agent run produced: 139 claims, 27 controls, zero
 # `rules-out`. A cycle rules out the other direction — `stance` needs `claim-tree` — so the
 # fix is to name the right destination here rather than to add an edge.
-INDUCTION_TARGET = "stance"
+#
+# `modules` is one step further, and it is the right destination for the same reason `stance`
+# was over `claim-tree`: it is the last mechanical step, needing no model, that gives a finished
+# tree its structure. It transitively needs `stance` (the alternatives a question module rejects)
+# and reads the edges to group the atoms into the questions, findings and scope a reader holds in
+# mind; its `loose` list is the runbook's own to-do, naming the edges the tree is still missing.
+# Driving to `stance` leaves the graph atomized with nothing saying what its modules are; driving
+# to `modules` costs one mechanical pass and hands the agent the gaps to close before handover.
+INDUCTION_TARGET = "modules"
 
 
 # ── tokens ───────────────────────────────────────────────────────────────

@@ -100,15 +100,18 @@ RECIPROCAL = {"entails": "derived-from"}
 NEVER_EMITTED = set(RECIPROCAL.values())          # {"derived-from"}
 
 # The role a relation's source must have, where the direction rule fixes it. `rules-out` runs
-# from the control or evidence that eliminates a rival, so its source is a control or an
-# empirical claim — the `stance` layer aims one from a named control at the alternative it kills,
-# and a rules-out from anything else is dropped the way a mis-directed `tests` is.
+# from the control or evidence that eliminates a rival — a single control, or the synthesis or
+# interpretation that aggregates several results into the elimination. The #53 rule that a
+# synthesis must carry an argument edge outward names `rules-out` as one of those edges (the
+# risk-preference synthesis eliminates the risk-attitude alternative), so a `synthesis` or
+# `interpretation` is a legal source here beside `empirical` and `control`; a rules-out from
+# anything else is dropped the way a mis-directed `tests` is.
 # The outcome relations run from the result that settled a test to the prediction it tested, so
 # their source is a control or an empirical claim, exactly like `tests`, and their target is a
 # prediction (checked below beside `tests`).
 _SOURCE_ROLE = {"entails": {"hypothesis"}, "scopes": {"scope"}, "tests": {"empirical", "control"},
-                "rules-out": {"empirical", "control"}, "confirms": {"empirical", "control"},
-                "refutes": {"empirical", "control"}}
+                "rules-out": {"empirical", "control", "synthesis", "interpretation"},
+                "confirms": {"empirical", "control"}, "refutes": {"empirical", "control"}}
 
 # The relations whose target must be a prediction: the neutral test and its two outcomes.
 _PREDICTION_TARGET = {"tests", "confirms", "refutes"}

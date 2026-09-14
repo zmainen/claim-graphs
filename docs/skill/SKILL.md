@@ -112,6 +112,26 @@ Every workflow below walks this spine. Analysis walks it upward from the panels;
 walks it downward from the question; an experimental design walks it sideways, from the rivals
 that have to be eliminated to the measurements that eliminate them.
 
+## Modules and clusters
+
+The spine is atomized into dozens of claims; the unit a reader holds above them is the module.
+A **module is one question under test**: the question, the hypothesis the work commits to, the
+alternatives it raises to reject, the predictions the hypothesis entails, the findings that
+answer them, and the interpretation drawn. That is the *argument grain*.
+
+A **finding and its results are one cluster**. The finding is a claim on the paper; its results
+— the parts, the controls that validate it, the sub-results that support it, the caveats that
+qualify it — are atoms with spans and panels, and are never called claims on the paper. The
+cluster is the unit twice: of *identity* across versions (a result appearing or vanishing is a
+change inside the finding, `fold`), and of *strength* (a finding's warrant is a function of its
+results, `combine`).
+
+**Scope is the module's ground, in two halves**: the *domain* is what the claims apply to
+(sample, task, design), the *apparatus* is what they rest on (models, GLM, localizer). An
+**observation** is a finding that answers no declared question — what a later paper makes a
+hypothesis of. **Loose** is a lint, not a category: a claim no edge places, named with the edge
+it wants. The `modules` layer derives all of this mechanically from the edges.
+
 ## Pick the workflow
 
 | You are… | Read | Has a runner |

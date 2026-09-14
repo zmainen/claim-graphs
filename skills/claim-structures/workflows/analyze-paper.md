@@ -38,14 +38,16 @@ Run the commands below from this repository. A layer's `reads:` — its prompts,
 | 6 | `external-review` | What structure did the three readers systematically miss? | a model |
 | 7 | `edge-inference` | Which claims depend on which? | a model |
 | 8 | `claim-tree` | What does this paper assert, and how do its assertions depend on each other? | mechanically, no model call |
-| 9 | `stance` | What does this paper rule out, and what does it merely entertain? | a model |
+| 9 | `questions` | What did this paper set out to answer, and which claim answers each question? | a model |
+| 10 | `stance` | What does this paper rule out, and what does it merely entertain? | a model |
+| 11 | `modules` | What are the paper's questions, and which claims answer each? | mechanically, no model call |
 
 ### The loop
 
 One command, repeated until it says done. It walks this chain, runs everything that needs no model, and stops at the first layer that does — leaving that layer's exact prompt on disk and naming the file to write the answer to.
 
 ```bash
-python3 scripts/pipeline.py agent <paper> stance --json \
+python3 scripts/pipeline.py agent <paper> modules --json \
     --by "<the model answering>" --tokens <what that session spent>
 ```
 
@@ -56,7 +58,7 @@ It prints one JSON object and exits **10** while a prompt is waiting, **0** when
   "question": "What does the Results section assert?",
   "prompt": "runs/<paper>/agent/results-reader.prompt.txt",
   "answer": "runs/<paper>/agent/results-reader.answer.json",
-  "next":   "python3 scripts/pipeline.py agent <paper> stance" }
+  "next":   "python3 scripts/pipeline.py agent <paper> modules" }
 ```
 
 So the whole procedure is: run it, read `prompt`, answer it, write `answer`, run it again. Do not work from the layer table above — it is here to say what is happening, not to be executed. The command knows the order.
@@ -134,6 +136,10 @@ claims by an agreement you produced rather than found. See the runbook.
 never a redirect to the nearest asserted claim.
 
 ## Then
+
+Run `modules`, read its `loose` list, and add the edge each loose claim names before handing
+over — a synthesis that points at nothing, a result wired to no finding, an apparatus claim with
+no `requires` is a gap in the argument the layer has found for you, not a property of the paper.
 
 Run [../references/checks.md](../references/checks.md) — the gate, then coverage, then the
 reconstruction test. Report what you could not settle. If the handoff is for a person to read

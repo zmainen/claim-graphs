@@ -28,6 +28,12 @@ about its own machinery. Put the verification banner, the model names, the run l
 layer map *after* the science, or in a view of their own. A green box at the top of someone
 else's paper is one step's result wearing the paper's headline.
 
+**Present a paper as its findings, not its atoms.** The unit a reader holds is the module and
+its finding clusters (see the `modules` layer): a finding is one thing the paper reports, and
+its dozen numbers are results folded beneath it, opened on demand. Leading with the atoms — every
+comparison, condition and measure at once — is the thirty-YAML-blocks failure in another form.
+Show the finding; let its results open.
+
 ## Anchor to spans, and name the misses
 
 The working form in this repository is `marked/<paper>.marked.md`: the paper's own prose, in its
