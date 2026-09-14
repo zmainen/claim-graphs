@@ -19,17 +19,31 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from canon import canon_version, entries          # noqa: E402
 from canon.check import check                      # noqa: E402
+from canon import page as page_mod                 # noqa: E402
 
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--check", action="store_true", help="run every canon check")
+    ap.add_argument("--render", action="store_true", help="write docs/canon.html (corpus-free)")
+    ap.add_argument("--with-corpus", action="store_true",
+                    help="with --render, enrich a local view with corpus counts (not committed)")
+    ap.add_argument("--bless", action="store_true",
+                    help="reset the page's changelog baseline to the current entries")
     ap.add_argument("--version", action="store_true", help="print the canon version and exit")
     ap.add_argument("--list", action="store_true", help="list every concept and its status")
     a = ap.parse_args()
 
     if a.version:
         print(canon_version())
+        return 0
+
+    if a.bless:
+        print(f"blessed baseline: {page_mod.bless()}")
+        return 0
+
+    if a.render:
+        print(f"wrote {page_mod.write(a.with_corpus)}")
         return 0
 
     if a.list:

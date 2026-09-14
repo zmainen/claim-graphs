@@ -84,6 +84,30 @@ def _fold_surface_checks(problems: list[str]) -> None:
         problems.append(f"skill surface stale: {name} (run `skill --write`)")
 
 
+def _schema_closed_sets(problems: list[str]) -> None:
+    """The interchange schema's closed value sets are the canon's.
+
+    `schema/to_claim_set.py` already reads the relation set from the canon (via `relations.py`);
+    this holds the JSON schema's own enums to it too — the relation enum is exactly the canon's
+    `EDGE_KEYS`, and the claim-type enum is the canon's claim types plus the one alias the
+    exporter adds (`scope`, from the scope role's type). A drift here means a consumer validates
+    against a vocabulary the machinery no longer speaks.
+    """
+    import json
+    schema = json.loads((REPO / "schema" / "claim-set-v0.schema.json").read_text(encoding="utf-8"))
+    rel_enum = set(schema["$defs"]["relation"].get("enum", []))
+    if rel_enum != set(_vocab.EDGE_KEYS):
+        problems.append(f"schema relation enum != canon EDGE_KEYS "
+                        f"(only in schema: {sorted(rel_enum - set(_vocab.EDGE_KEYS))}; "
+                        f"only in canon: {sorted(set(_vocab.EDGE_KEYS) - rel_enum)})")
+    type_enum = set(schema["$defs"]["claim"]["properties"]["type"].get("enum", []))
+    canon_types = {n for n, _ in _vocab.CLAIM_TYPES} | {"scope"}   # scope is to_claim_set's alias
+    if type_enum != canon_types:
+        problems.append(f"schema type enum != canon claim types + scope alias "
+                        f"(only in schema: {sorted(type_enum - canon_types)}; "
+                        f"only in canon: {sorted(canon_types - type_enum)})")
+
+
 def induced_argument_grain() -> dict:
     """The toy study's derived question module, in a subprocess with the toy root.
 
@@ -104,6 +128,28 @@ def induced_argument_grain() -> dict:
     if out.returncode != 0:
         raise RuntimeError(out.stderr.strip() or "modules build failed")
     return json.loads(out.stdout)
+
+
+def _method_tracks_canon(problems: list[str]) -> None:
+    """The method's relation and role tables name exactly the canon's vocabulary.
+
+    `docs/method.md` is the definitions a person reads; a relation the canon has and the method
+    omits is a definition the method silently lacks. The tables are token-filled from the same
+    corpus facts, so this holds their *membership* to the canon rather than regenerating the prose.
+    """
+    method = REPO / "docs" / "method.md"
+    if not method.is_file():
+        return
+    text = method.read_text(encoding="utf-8")
+    rel_table = re.search(r"### 4\.3.*?### 4\.4", text, re.S)
+    if rel_table:
+        named = set(re.findall(r"^\| `([a-z-]+)` \|", rel_table.group(0), re.M))
+        missing = set(_vocab.EDGE_KEYS) - named
+        extra = named - set(_vocab.EDGE_KEYS)
+        if missing:
+            problems.append(f"method.md relation table omits canon relations: {sorted(missing)}")
+        if extra:
+            problems.append(f"method.md relation table names non-canon relations: {sorted(extra)}")
 
 
 def _composed_induced_agree(problems: list[str]) -> None:
@@ -174,5 +220,15 @@ def check() -> list[str]:
 
     # 5. the contract and skill surfaces, folded in
     _fold_surface_checks(problems)
+
+    # 5b. the interchange schema's closed value sets are the canon's
+    _schema_closed_sets(problems)
+
+    # 5c. the method's definition tables name exactly the canon's vocabulary
+    _method_tracks_canon(problems)
+
+    # 6. the committed page is the rendered one
+    from . import page as _page
+    problems += _page.check()
 
     return problems

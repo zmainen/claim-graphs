@@ -258,6 +258,11 @@ Edges are propositions about logical structure between claim entities, not citat
 | `enables-method` | methodological warrant | A is the methodological capability that warrants B's interpretability. | {{relation_counts.enables-method}} |
 | `scopes` | scope qualification | A is a boundary condition on B (or, if `["*"]`, on every empirical claim in the paper). | {{relation_counts.scopes}} |
 | `part-of` | composition | A is a component of B — one comparison, condition, measure or study of a proposition B states whole. B is weakened but not falsified by A alone; the page shows B with its parts folded beneath it. | {{relation_counts.part-of}} |
+| `qualifies` | qualification | A narrows the applicability of B without supporting or refuting it (a result that bounds a finding). | {{relation_counts.qualifies}} |
+| `extends` | generalisation | A extends B beyond its original conditions (a later or broader result). | {{relation_counts.extends}} |
+| `replicates` | replication | A is an independent finding of the same result as B. | {{relation_counts.replicates}} |
+| `contradicts` | opposition | A and B cannot both hold. Distinct from `in-tension-with`, where both stand. | {{relation_counts.contradicts}} |
+| `opposes` | opposition | A stands against B. Aimed only at a claim the paper does not assert. | {{relation_counts.opposes}} |
 
 ### 4.4 Edge-to-reasoning-form mapping
 
