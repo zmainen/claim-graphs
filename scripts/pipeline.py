@@ -47,6 +47,34 @@ try:
 except ImportError:
     sys.exit("PyYAML required:  pip install pyyaml")
 
+
+def _canon_version() -> str | None:
+    """The canon's content digest, so a run records the meaning of *warrant* it was made under.
+
+    Loaded lazily and by path from the machinery, so a graph checkout with no canon beside it
+    (older machinery) records nothing rather than failing.
+    """
+    try:
+        sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        from canon import canon_version
+        return canon_version()
+    except Exception:                                              # noqa: BLE001
+        return None
+
+
+def _canon_entry_version(concept: str) -> str | None:
+    """The per-entry digest for `approve --declaration canon/<concept>`, keyed so a change to
+    that entry invalidates the acceptance — the same shape a layer's declaration version has."""
+    try:
+        sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        from canon import entries
+        e = entries().get(concept)
+        if e is None:
+            return None
+        return hashlib.sha256(json.dumps(e, sort_keys=True, default=str).encode()).hexdigest()[:12]
+    except Exception:                                              # noqa: BLE001
+        return None
+
 # Two roots, because there are two repositories.
 #
 # The machinery — the declaration, the runners, the prompts, the schema — is this checkout.
@@ -483,6 +511,9 @@ def record(paper: str, layer: dict, by_id: dict, *, note: str, by: str,
         "out": [{"path": r, "sha": digest(r)} for r in outs if digest(r)],
         "machinery": machinery_stamp(),
     }
+    cv = _canon_version()
+    if cv:
+        entry["canon"] = cv
     if usage:
         entry["usage"] = usage
     return entry
@@ -766,6 +797,7 @@ def state(decl: dict | None = None, slugs: list[str] | None = None) -> dict:
     # Keeping both meant the site could print "undecided" beside an "accepted" chip for the
     # same layer, which is what it did for relation-vocab after #125 was ruled and written in.
     scheme = declaration_state(decl)
+    current_canon = _canon_version()
 
     out = {}
     for paper in slugs:
@@ -859,6 +891,11 @@ def state(decl: dict | None = None, slugs: list[str] | None = None) -> dict:
                               "note": run.get("note"), "by": run.get("by"),
                               "moved": moved, "lost": lost, "appeared": appeared,
                               "drift": drift, "absent": absent}
+                # A run made under an older canon was made under an older meaning of the
+                # concepts it records — shown beside the mechanism state, not folded into it.
+                if run.get("canon") and current_canon and run["canon"] != current_canon:
+                    cells[lid]["canon_stale"] = {"ran_under": run["canon"],
+                                                 "current": current_canon}
             if lid not in cells:
                 cells[lid] = {"state": st}
             if st == CURRENT and upstream:
@@ -1371,7 +1408,13 @@ def cmd_approve_declaration(args) -> int:
     adjudication procedure) is keyed on the note's own content hash, the same `digest`.
     """
     lid = args.declaration
-    if lid in DOC_DECLARATIONS:
+    if lid.startswith("canon/"):
+        concept = lid[len("canon/"):]
+        ver = _canon_entry_version(concept)
+        if ver is None:
+            print(f"error: no canon concept {concept!r}", file=sys.stderr)
+            return 2
+    elif lid in DOC_DECLARATIONS:
         ver = digest(DOC_DECLARATIONS[lid])
         if ver is None:
             print(f"error: {DOC_DECLARATIONS[lid]} does not exist", file=sys.stderr)

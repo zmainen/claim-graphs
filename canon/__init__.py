@@ -21,6 +21,48 @@ TOY_STUDY = ROOT / "toy-study"
 TOY_PAPER = "toy-widgets"
 
 
+def _entry_version(eid: str) -> str | None:
+    e = entries().get(eid)
+    if e is None:
+        return None
+    return hashlib.sha256(json.dumps(e, sort_keys=True, default=str).encode()).hexdigest()[:12]
+
+
+def corpus_status(root=None) -> dict[str, str]:
+    """Each concept's status, with `approve --declaration canon/<concept>` overlaid.
+
+    Reads `runs/approvals.jsonl` in the graph root: a concept whose current entry version has an
+    acceptance recorded reads `accepted`, whatever its static status. Used for display only — the
+    static status in `entries()` (and so `canon_version`) is corpus-independent, so the page and
+    `--check` stay stable whether or not a corpus is attached.
+    """
+    import os
+    reg = entries()
+    out = {eid: e["status"] for eid, e in reg.items()}
+    root = root or os.environ.get("CLAIM_GRAPHS_ROOT")
+    if not root:
+        return out
+    approvals = Path(root) / "runs" / "approvals.jsonl"
+    if not approvals.is_file():
+        return out
+    accepted: dict[str, str] = {}
+    for line in approvals.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            rec = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        decl = rec.get("declaration", "")
+        if decl.startswith("canon/"):
+            accepted[decl[len("canon/"):]] = rec.get("version", "")
+    for eid in out:
+        if accepted.get(eid) == _entry_version(eid):
+            out[eid] = "accepted"
+    return out
+
+
 def canon_version() -> str:
     """A content digest over the entries — the version every declaration has.
 

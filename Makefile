@@ -48,7 +48,11 @@ check:  ## Gates that are clean on main. A failure here is this change's fault.
 	# The canon toy study through every mechanical layer, and composed==induced. Copies the
 	# study to a temp root, so it needs no CORPUS and modifies nothing.
 	$(PYTHON) scripts/test_canon.py
-	# The canon: every entry complete, every vocabulary term owns an entry, the contract and
+	# Canon versioning and the page: the content digest, the ledger stamp, the concept approval,
+	# and the committed page equals the rendered one. Standalone, temp graph, no corpus.
+	$(PYTHON) scripts/test_canon_version.py
+	# The canon: every entry complete, every vocabulary term owns an entry, the schema and method
+	# closed sets track the canon, the committed page is the rendered one, and the contract and
 	# skill surfaces render (folded in). Needs a corpus for the folded surface checks.
 	$(PYTHON) scripts/canon.py --check
 	$(PYTHON) scripts/test_pipeline_versions.py
