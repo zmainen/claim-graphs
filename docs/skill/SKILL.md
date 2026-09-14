@@ -165,3 +165,38 @@ layer when a workflow here has no runner.
 A corpus is a separate checkout: point `CLAIM_GRAPHS_CORPUS_DIR` at one. No human has verified
 any claim in the seed corpus — treat existing files as a draft annotation layer to imitate
 structurally, not as adjudicated content.
+
+### Starting a graph for a paper of your own
+
+The machinery holds no papers. A graph is a directory you make, and three things are needed
+before any layer will run — the second is the one that is easy to miss, because without it
+every command answers `no paper '<slug>'`, which is true and unhelpful:
+
+1. `claims/<slug>/index.md` with front matter carrying `doi:` — a DOI, or any reference a
+   source resolves, a local path included.
+2. `corpus.yaml` at the graph root, listing the slug under `corpora.<name>.papers`.
+3. `CLAIM_GRAPHS_ROOT` at the graph, `CLAIM_GRAPHS_CORPUS_DIR` at its `claims/`, and the
+   machinery's `extract/` and `scripts/` on `PYTHONPATH`.
+
+### What a `doi:` may point at
+
+| reference | path taken |
+|:--|:--|
+| an eLife DOI | JATS from the publisher's CDN |
+| a local `.xml` / `.nxml` | JATS, read as structure |
+| `.md`, `.docx`, `.tex`, `.html`, `.odt`, `.rst` | converted to JATS by pandoc, then read as structure |
+| a local `.pdf` | flat text, sliced by pattern |
+
+The distinction that matters is not the file extension but which of two branches the document
+reaches. JATS is read as structure: sections by their titles, captions bound to figure ids,
+tables with their rows. Everything else is flat text sliced by regex, which finds results and
+methods and loses the rest. Anything pandoc reads therefore arrives structured; only PDF does
+not, because pandoc cannot read PDF.
+
+**Markdown with YAML front matter is the best non-JATS input**, because it is the one where
+the title and abstract survive. Give it `title:` and `abstract:` in the front matter — an
+`# Abstract` heading becomes an ordinary section, and the abstract slice then comes back empty
+with no error to tell you. Word keeps the title and loses the abstract; HTML and LaTeX arrive
+with neither. Body sections come through from all of them.
+
+Converting needs `pandoc` installed. If it is missing, the refusal says so by name.

@@ -578,13 +578,16 @@ def slice_sections(text: str) -> dict[str, str]:
 def extract_figure_captions(text: str) -> list[FigureCaption]:
     """Find figure captions and extract their panel labels.
 
-    Captions in eLife PDFs typically appear:
-      - In the body text near where the figure is referenced (some journals)
-      - Listed together at the end of the paper (eLife convention varies)
+    This is the flat-text path: no format that reaches it carries captions as structure, so
+    they are recovered by pattern. Captions sit either in the body near the reference or
+    collected at the end, and which one is a house style rather than a rule.
 
-    Heuristic: match "Figure N." or "Fig. N." at line-start and consume
-    until the next caption start or a clear stop pattern (next section
-    heading, end of document).
+    Heuristic: match "Figure N." or "Fig. N." at line-start and consume until the next caption
+    start or a clear stop pattern (next section heading, end of document).
+
+    Panels go through `_panel_letters`, the same function `parse_jats` uses, so a caption
+    reading "(A-C)" yields three panels on either path rather than depending on which branch
+    the document happened to take.
     """
     captions: list[FigureCaption] = []
     matches = list(FIG_CAPTION_START.finditer(text))
@@ -607,17 +610,9 @@ def extract_figure_captions(text: str) -> list[FigureCaption]:
                 end = sm.start()
         caption_text = text[start:end].strip()
 
-        # Extract panel labels
-        panel_letters: list[str] = []
-        seen = set()
-        for pm in PANEL_LABEL_RE.finditer(caption_text):
-            letter = (pm.group(1) or "").lower()
-            if letter and letter not in seen and letter.isalpha() and len(letter) == 1:
-                panel_letters.append(letter)
-                seen.add(letter)
-
         captions.append(
-            FigureCaption(figure_num=fig_num, text=caption_text, panels=panel_letters)
+            FigureCaption(figure_num=fig_num, text=caption_text,
+                          panels=_panel_letters(caption_text))
         )
 
     return captions
