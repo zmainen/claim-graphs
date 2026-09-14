@@ -64,7 +64,14 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from export_mira import CLAIMS_DIR, load_paper, public_papers, relations  # noqa: E402
 from relations import NEUTRAL_TEST as NEUTRAL, OUTCOME  # noqa: E402
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# Paths here are the graph's, not this checkout's (scripts/roots.py). Deriving a root
+# from __file__ wrote corpus output into the machinery checkout: issue #50.
+#
+# The sys.path line is not decoration: these scripts are sometimes loaded by path rather
+# than imported by name (extract/tests/test_profiles.py does), and a sibling import then
+# has nothing to resolve against.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # noqa: E402
+from roots import GRAPH as ROOT  # noqa: E402
 MANIFEST = os.path.join(ROOT, "review", "prediction-outcome.json")
 
 RULE_VERSION = 3

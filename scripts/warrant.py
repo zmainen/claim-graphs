@@ -59,7 +59,14 @@ from export_mira import CLAIMS_DIR, first_assertion, load_paper, relations  # no
 
 RULE_VERSION = 3
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# Paths here are the graph's, not this checkout's (scripts/roots.py). Deriving a root
+# from __file__ wrote corpus output into the machinery checkout: issue #50.
+#
+# The sys.path line is not decoration: these scripts are sometimes loaded by path rather
+# than imported by name (extract/tests/test_profiles.py does), and a sibling import then
+# has nothing to resolve against.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # noqa: E402
+from roots import GRAPH as ROOT  # noqa: E402
 
 # The graded levels, weakest first, so `min` is the weakest and a cap is a slice. Predictions
 # (confirmed/refuted/untested) and alternatives (ruled-out/open) carry their own vocabularies

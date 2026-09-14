@@ -36,14 +36,22 @@ try:
 except ImportError:
     sys.exit("PyYAML required:  pip install pyyaml")
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# Paths here are the graph's, not this checkout's (scripts/roots.py). Deriving a root
+# from __file__ wrote corpus output into the machinery checkout: issue #50.
+#
+# The sys.path line is not decoration: these scripts are sometimes loaded by path rather
+# than imported by name (extract/tests/test_profiles.py does), and a sibling import then
+# has nothing to resolve against.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # noqa: E402
+import roots  # noqa: E402
+from roots import GRAPH as ROOT  # noqa: E402
 
 # The package lives beside the runners, in the machinery checkout — not under ROOT,
 # which after the split names the graph.
 sys.path.insert(0, os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "extract"))
 from claim_graphs import claimfile  # noqa: E402
-CLAIMS_DIR = os.path.join(ROOT, "claims")
+CLAIMS_DIR = roots.CLAIMS   # honours CLAIM_GRAPHS_CORPUS_DIR
 
 MARK_RE = re.compile(r"⟦>[a-z0-9_-]*(?:\.[0-9a-z]{4,6})?[^:⟧]*claim=([^\s:⟧]+):\s*@\{(.*?)\}",
                      re.DOTALL)
