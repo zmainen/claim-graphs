@@ -17,6 +17,15 @@ from the same declarations the pipeline sends to a model, and the sequence in
 runner, the runner hands you the exact prompt the backend would have received; answering that
 is how an agent and an API produce the same tree.
 
+## Where every term is defined
+
+Every concept this skill uses is defined once, in the canon: `docs/canon.html` is the rendered
+reference (one card per concept, with its definition, what sets it apart, what enforces it, and
+an example from a toy study), `canon/entries.py` is the source, and `python3 scripts/canon.py
+--check` holds this skill, the prompts, the method and the schema to it. When a term here is
+unfamiliar, read its card. A term that is not in the canon is not part of the model: propose
+it before relying on it.
+
 ## What a claim is
 
 A claim is an **entity**, not a result and not a figure. `dat-reuptake-dominates` is a
