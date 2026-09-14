@@ -27,6 +27,8 @@ These are rejected by `scripts/check_relations.py`, which `make check` runs. The
 Reported as a warning rather than an error:
 
 - **A relation naming a slug that is not a claim in this paper.** (dangling-target) — Either the target was never written or a slug was renamed and the edge not followed. `scopes: '*'` is the one legal non-slug target and means the whole paper.
+- **A `synthesis` or `interpretation` with no outgoing argument edge (issue #53).** (synthesis-without-outgoing-argument-edge) — It aggregates evidence and settles nothing. Add the edge that says what it bears on — `supports` a hypothesis, `rules-out` an alternative, or `interprets` a member — or the `modules` layer leaves it loose.
+- **A claim the `modules` layer could not place, reported once that layer has run (issue #53).** (loose-claim) — The module derivation names the edge each loose claim wants. Add it, or accept that the claim stands outside the paper's argument.
 
 ```bash
 python3 scripts/check_relations.py --rules        # this list, from the checker

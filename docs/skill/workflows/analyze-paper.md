@@ -75,6 +75,10 @@ never a redirect to the nearest asserted claim.
 
 ## Then
 
+Run `modules`, read its `loose` list, and add the edge each loose claim names before handing
+over — a synthesis that points at nothing, a result wired to no finding, an apparatus claim with
+no `requires` is a gap in the argument the layer has found for you, not a property of the paper.
+
 Run [../references/checks.md](../references/checks.md) — the gate, then coverage, then the
 reconstruction test. Report what you could not settle. If the handoff is for a person to read
 rather than for a corpus to hold, build it as an overlay on the paper's own text
