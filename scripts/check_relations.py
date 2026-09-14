@@ -63,8 +63,8 @@ import sys
 import yaml
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from export_mira import (CLAIMS_DIR, load_paper, public_papers,  # noqa: E402
-                         relations)
+from export_mira import (CLAIMS_DIR, load_paper, papers_on_disk,  # noqa: E402
+                         public_papers, relations)
 
 from relations import (CONTRARY, NEUTRAL_TEST,  # noqa: E402
                        OUTCOME, STANCES)
@@ -309,7 +309,9 @@ def main():
             print(f"warn    {rid}: {rejects}\n          {fix}")
         return 0
 
-    slugs = [a.paper] if a.paper else public_papers()
+    # No manifest (public_papers is None) means no corpus.yaml — a bare graph. Lint every
+    # claim directory on disk, empty ones included, rather than crashing on None (#70).
+    slugs = [a.paper] if a.paper else (public_papers() or papers_on_disk())
     total_e = total_w = 0
     for s in slugs:
         if not os.path.isdir(os.path.join(CLAIMS_DIR, s)):

@@ -328,6 +328,7 @@ def main():
     else:
         ap.error("give a paper slug or --all")
 
+    os.makedirs(EXPORTS, exist_ok=True)
     for slug in slugs:
         r = report(slug)
         open(os.path.join(EXPORTS, f"{slug}.formats.md"), "w", encoding="utf-8").write(markdown(r))

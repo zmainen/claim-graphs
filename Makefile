@@ -49,6 +49,8 @@ check:  ## Gates that are clean on main. A failure here is this change's fault.
 	# No runner may derive a corpus path from its own location (#50).
 	$(PYTHON) scripts/test_roots.py
 	$(PYTHON) scripts/test_agent_mode.py
+	# A bare graph — one index, no corpus.yaml — reports empty rather than crashing (#70).
+	$(PYTHON) scripts/test_empty_graph.py
 
 test:  ## The whole suite under pytest
 	cd extract && $(PYTHON) -m pytest tests/ -q
