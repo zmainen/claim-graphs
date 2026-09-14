@@ -761,6 +761,11 @@ def state(decl: dict | None = None, slugs: list[str] | None = None) -> dict:
     slugs = slugs or papers()
     order = _toposort(by_id)
     na = decl.get("not_applicable") or {}
+    # A corpus-scope cell's mechanism follows the scheme, which is computed from the rulings —
+    # not from a hand-written `open:` flag that nobody updates when a question is answered.
+    # Keeping both meant the site could print "undecided" beside an "accepted" chip for the
+    # same layer, which is what it did for relation-vocab after #125 was ruled and written in.
+    scheme = declaration_state(decl)
 
     out = {}
     for paper in slugs:
@@ -770,7 +775,10 @@ def state(decl: dict | None = None, slugs: list[str] | None = None) -> dict:
         for lid in order:
             layer = by_id[lid]
             if layer.get("scope") == "corpus":
-                cells[lid] = {"state": OPEN if layer.get("open") else CURRENT,
+                # `proposed` is a rule that exists and runs, so mechanically it is current;
+                # the scheme chip beside it is what says a person has not accepted this
+                # version. Only a genuinely unanswered question reads `open`.
+                cells[lid] = {"state": OPEN if scheme[lid]["scheme"] == OPEN else CURRENT,
                               "scope": "corpus"}
                 continue
             if lid in (na.get(paper) or {}):
@@ -882,11 +890,13 @@ def cmd_graph(args) -> int:
     """Print the DAG in dependency order, so the declaration can be read as a shape."""
     decl = load()
     by_id, groups = decl["by_id"], decl.get("groups") or {}
+    scheme = declaration_state(decl)
     print("pipeline — %d layers, %d groups\n" % (len(by_id), len(groups)))
     for lid in _toposort(by_id):
         l = by_id[lid]
         needs = ", ".join(l.get("needs") or []) or "—"
-        flag = " ·OPEN" if l.get("open") else (" ·HUMAN" if l.get("requires_human") else "")
+        flag = " ·OPEN" if scheme[lid]["scheme"] == OPEN else (
+            " ·HUMAN" if l.get("requires_human") else "")
         grp = f"[{l['group']}] " if l.get("group") else ""
         print(f"  {lid:18} {l.get('kind',''):10} {l.get('scope',''):7}{flag}")
         print(f"  {'':18} {grp}needs: {needs}")
