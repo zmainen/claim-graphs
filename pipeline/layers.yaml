@@ -1121,3 +1121,48 @@ layers:
     issue: 126
     added: "2026-09-13"
     command: "cd extract && python3 -m claim_graphs.cli verification-check --paper {paper}"
+
+  # A module is the unit a reader holds in mind above the atoms: one question under test, with
+  # the hypothesis, the alternatives, the predictions and the findings that answer it. It is
+  # derived from the edges and nothing else — mechanical, like `prediction-outcome`, so it runs
+  # on every tree without a prompt. It is a `feature` for the reason `parts`, `stance` and
+  # `warrant` are: it reads a finished tree and gives it a structure the atoms already imply. It
+  # needs `questions` (the seeds) and `stance` (which addressed claims are the alternatives),
+  # and `prediction-outcome` because a prediction's findings are shown with the outcome that
+  # layer records; through `stance` it transitively needs `claim-tree`. The one reading it can
+  # not do mechanically — a sentence for an observation, or for a hypothesis too long to serve
+  # as its module's summary — is the optional `module-summaries` step, one prompt per paper.
+  - id: modules
+    group: tree
+    kind: feature
+    scope: paper
+    status: proposed
+    title: Modules
+    question: What are the paper's questions, and which claims answer each?
+    how: >
+      Reads the tree's edges — the `addresses` that seeds a module from a question, the `entails`
+      down to predictions, the `tests`/`confirms`/`refutes`/`supports`/`rules-out` that carry a
+      finding to a hypothesis or an alternative, the `part-of`/`validates`/`qualifies` that hang
+      a result under a finding, and the `requires`/`scopes` that set the module's apparatus and
+      domain — and groups the claims into modules in two grains. The argument grain is a handful
+      of nodes: the question, the hypothesis, the alternatives with what eliminated each, the
+      predictions with their outcome, the findings, the interpretation. The finding grain is a
+      cluster: a finding and the analysis results that bear on it, with a `combine` record naming
+      the results its warrant was computed from — the results are atoms with spans and panels,
+      never claims on the paper. Scope sits beside the argument as domain and apparatus. A finding
+      that answers no declared question is an observation; what no edge places is loose, and each
+      loose claim is listed with the edge it would take to place it. No model call.
+
+      `--report` prints the per-module counts in clusters and results; `--write` (the default when
+      a paper is named) writes the two files.
+    found: >
+      A module is what a paper is, above its atoms — the loose list is the lint that says where an
+      edge is missing, so a paper with nothing loose is one whose argument the graph fully holds.
+    needs: [claim-tree, questions, stance, prediction-outcome]
+    reads: [scripts/modules.py]
+    produces: ["runs/{paper}/modules.json", "views/{paper}.modules.json"]
+    views: [modules]
+    doc: /pipeline/layers/modules/
+    issue: 53
+    added: "2026-09-14"
+    command: "python3 scripts/modules.py {paper} --write"
