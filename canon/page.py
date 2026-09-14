@@ -345,11 +345,22 @@ def render(with_corpus: bool = False) -> str:
            f"<style>{STYLE}</style>", '<div class="wrap">',
            '<header class="mast">',
            '<p class="kicker">claim-graphs · the canon</p>',
-           '<h1>One declaration of every concept the system has</h1>',
-           '<p class="standfirst">Every concept the machinery relies on — the atom, the relations, '
-           'the roles, the module, scope, warrant, the checks, the kinds of decision — defined '
-           'once, versioned, and rendered here. A concept not in the canon is not a concept the '
-           'system has.</p>',
+           '<h1>Every concept claim-graphs uses, defined once</h1>',
+           '<p class="standfirst">This is the dictionary for claim-graphs, a tool that reads a '
+           'scientific paper and builds a typed graph of the claims it makes and how they depend '
+           'on each other. Every term that tool uses — the claim, the relations between claims, '
+           'the roles a claim plays, and the rest — is defined here, once. Read a card when a '
+           'term is unfamiliar, whether you are reading a claim set, writing one, or building on '
+           'the tool.</p>',
+           '<p class="sec-note">The cards are grouped by the part a concept plays: atoms first, '
+           'then the paper\'s situation, structure, assessment, and decision, and finally the '
+           'relations and roles that join claims. Each card gives a definition, what sets the '
+           'concept apart from its neighbours, what enforces it in the code, and an example you '
+           'can open — every example is drawn from the toy study at the foot of the page. A chip '
+           'marks each concept accepted or proposed. The version beside it is a content digest '
+           'that moves whenever any definition changes, so a recorded run can say which meaning '
+           'it used. A term that is not here is not part of the model — propose it before relying '
+           'on it.</p>',
            '<div class="status">'
            f'<span><b>canon version</b> {_esc(version)}</span>'
            f'<span><b>concepts</b> {len(reg)}</span>'
@@ -368,14 +379,16 @@ def render(with_corpus: bool = False) -> str:
 
     for title, ids in grains:
         section(title, "", ids)
-    section("Relations", "The typed logical edges between claims. The vocabulary is closed.",
+    section("Relations", "The typed logical edges between claims. These edge types are the "
+            "complete set — no others are valid.",
             rel_ids)
     section("Roles", "The work a claim does in the paper's argument.", role_ids)
 
     out.append("<section><h2>The toy study, four ways</h2>"
                "<p class='sec-note'>One synthetic study — does polishing a widget raise its "
-               "shine — carried through the four ways a claim is made. The same concepts in all "
-               "four; the finding clusters open in place.</p><div class='ways'>")
+               "shine — shown four ways: induced from the write-up, composed before any result "
+               "exists, derived from the analysis, and asserted about in review. The same "
+               "concepts appear in all four; the finding clusters open in place.</p><div class='ways'>")
     out.append(_four_ways_html())
     out.append("</div></section>")
 
