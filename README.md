@@ -59,6 +59,11 @@ my-press = "my_package.sources:MyPressSource"
 
 ## Using it as an agent
 
+The canon, `docs/canon.html`, defines every concept once — the atom, the relations, the roles,
+modules and clusters, scope, warrant, the checks, the kinds of decision — versioned by content
+and rendered into the contract, the skill, the method and the schema; `scripts/canon.py --check`
+holds them to it. Source: `canon/entries.py`; example: `canon/toy-study/`.
+
 `skills/claim-structures/` is the agent-facing entry point: what a claim is, the vocabulary, the
 checks, and a runbook for inducing a graph with subagents instead of an API key. It is
 **rendered**, not written — every relation, rule, role and step in it is substituted from the

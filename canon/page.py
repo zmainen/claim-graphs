@@ -346,12 +346,13 @@ def render(with_corpus: bool = False) -> str:
            '<header class="mast">',
            '<p class="kicker">claim-graphs · the canon</p>',
            '<h1>Every concept claim-graphs uses, defined once</h1>',
-           '<p class="standfirst">This is the dictionary for claim-graphs, a tool that reads a '
-           'scientific paper and builds a typed graph of the claims it makes and how they depend '
-           'on each other. Every term that tool uses — the claim, the relations between claims, '
-           'the roles a claim plays, and the rest — is defined here, once. Read a card when a '
-           'term is unfamiliar, whether you are reading a claim set, writing one, or building on '
-           'the tool.</p>',
+           '<p class="standfirst">This is the dictionary for claim-graphs, a tool for writing '
+           'scientific claims as a typed graph: what is claimed, and how each claim depends on the '
+           'others. A claim can enter the graph four ways — read from a finished paper, planned '
+           'before an experiment, produced by an analysis, or made in a review — and the concepts '
+           'are the same in all four. Every term the tool uses is defined here, once. Read a card '
+           'when a term is unfamiliar, whether you are reading a claim set, writing one, or '
+           'building on the tool.</p>',
            '<p class="sec-note">The cards are grouped by the part a concept plays: atoms first, '
            'then the paper\'s situation, structure, assessment, and decision, and finally the '
            'relations and roles that join claims. Each card gives a definition, what sets the '
