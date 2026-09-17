@@ -65,6 +65,8 @@ check:  ## Gates that are clean on main. A failure here is this change's fault.
 	$(PYTHON) scripts/test_pipeline_versions.py
 	# No runner may derive a corpus path from its own location (#50).
 	$(PYTHON) scripts/test_roots.py
+	# An approval must name whoever granted it, or refuse to exist.
+	$(PYTHON) scripts/test_promote_attribution.py
 	$(PYTHON) scripts/test_agent_mode.py
 	# A bare graph — one index, no corpus.yaml — reports empty rather than crashing (#70).
 	$(PYTHON) scripts/test_empty_graph.py
