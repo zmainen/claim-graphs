@@ -169,6 +169,34 @@ def write_claim(d: dict, cand: dict) -> Path:
     return out
 
 
+# Sentinels that look like a signature and are not. "unnamed" is on five records already,
+# written by a surface that asked for a name in a corner of a header nobody read; "unknown" was
+# this file's own fallback. Both make a record look signed when nobody signed it.
+UNSIGNED = {"unnamed", "unknown", "anonymous", "n/a", "-"}
+
+
+def signed_by(decisions: list[dict], paper: str) -> str:
+    """Who to attribute the batch approval to, or a refusal.
+
+    An approval is worth what its signature is worth, so this will not invent one. The review
+    endpoint requires a name, so decisions reaching here unsigned are old data or a hand-edited
+    file — in either case the person should be named rather than guessed at.
+
+    Several people may legitimately have decided different drafts in one batch. The approval is
+    for the batch, so it names all of them rather than whichever happened to sort first.
+    """
+    signers = {d["by"].strip() for d in decisions
+               if isinstance(d.get("by"), str) and d["by"].strip()
+               and d["by"].strip().lower() not in UNSIGNED}
+    if not signers:
+        raise SystemExit(
+            f"error: the {paper} gap-claim decisions carry no reviewer name, so the approval "
+            f"they justify cannot be attributed. Sign them in "
+            f"review/gap-claim-decisions.jsonl, or re-decide them in the review surface, "
+            f"which requires a name.")
+    return ", ".join(sorted(signers))
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -223,7 +251,7 @@ def main() -> int:
         total_rejected += len(rejected)
 
         if args.write:
-            who = next((d.get("by") for d in ds if d.get("by")), "unknown")
+            who = signed_by(ds, paper)
             run = pipeline._latest(pipeline.read_ledger(paper), "gap-claim")
             if run:
                 pipeline.approve(paper, "gap-claim", run["v"], by=who,
