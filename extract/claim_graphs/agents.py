@@ -96,7 +96,11 @@ def verify_evidence(quote: str, span: str | None, spans: dict[str, str],
 # The four prose sections the results reader reads, in reading order. Its slice is these
 # sections cut into the numbered spans coverage uses, each sentence shown with its id in front
 # so the reader can cite the span its evidence came from.
-_RESULTS_SECTIONS = ("abstract", "introduction", "results", "discussion")
+# What the structure reader is given when the paper has no procedural sections at all.
+NO_STRUCTURE = ("This paper has no methods, appendix or supplementary sections. "
+                "Return an empty list.")
+
+_RESULTS_SECTIONS = ("abstract", "introduction", "results", "argument", "discussion")
 
 
 def _render_spans(paper: PreparedPaper, sections: tuple[str, ...]) -> str:
@@ -125,7 +129,9 @@ def slice_for_agent(agent: AgentName, paper: PreparedPaper) -> str:
         parts = []
         if inventory:
             parts.append(f"# Panel inventory\n\n{inventory}")
-        parts.append(f"# Paper (abstract, introduction, results, discussion)\n\n{body}")
+        parts.append(f"# Paper (abstract, introduction, results, discussion)\n\n{body}"
+                     if paper.results_text else
+                     f"# Paper (abstract, introduction, argument, discussion)\n\n{body}")
         return "\n\n".join(parts)
     if agent == "caption":
         inventory = paper.panel_inventory()
@@ -137,12 +143,14 @@ def slice_for_agent(agent: AgentName, paper: PreparedPaper) -> str:
             parts.append(f"# Tables\n\n{paper.tables_text}")
         return "\n\n".join(parts)
     if agent == "structure":
-        parts = [f"# Methods\n\n{paper.methods_text}"]
-        if paper.appendix_text:
-            parts.append(f"# Appendices\n\n{paper.appendix_text}")
-        if paper.supplementary_text:
-            parts.append(f"# Supplementary material\n\n{paper.supplementary_text}")
-        return "\n\n".join(parts)
+        parts = [f"# {head}\n\n{text}" for head, text in
+                 (("Methods", paper.methods_text), ("Appendices", paper.appendix_text),
+                  ("Supplementary material", paper.supplementary_text)) if text]
+        # A review has none of the three. The heading used to be emitted whether or not the
+        # section existed, so the slice arrived empty but not blank — a Methods section that
+        # exists and says nothing, which is a thing to find claims in rather than an absence.
+        # An empty user message is not a valid request either, so say which case this is.
+        return "\n\n".join(parts) or NO_STRUCTURE
     raise ValueError(f"unknown agent: {agent!r}")
 
 
@@ -155,7 +163,7 @@ def raw_slice_for_agent(agent: AgentName, paper: PreparedPaper) -> str:
     """
     if agent == "results":
         blocks = [paper.abstract, paper.introduction_text, paper.results_text,
-                  paper.discussion_text]
+                  paper.argument_text, paper.discussion_text]
     elif agent == "caption":
         blocks = [paper.captions_text, paper.tables_text]
     elif agent == "structure":

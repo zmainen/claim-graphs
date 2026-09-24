@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import os
 import re
 import shutil
 import subprocess
@@ -36,6 +37,26 @@ logger = logging.getLogger(__name__)
 Format = Literal["jats", "pdf"]
 
 SOURCE_ENTRY_POINT_GROUP = "claim_graphs.sources"
+
+
+def graph_root() -> Path:
+    """Where a relative local reference is resolved from: the graph, not the caller's cwd."""
+    return Path(os.environ.get("CLAIM_GRAPHS_ROOT") or Path.cwd()).expanduser().resolve()
+
+
+def local_path(ref: str) -> Path:
+    """A reference to a file on disk, as an absolute path.
+
+    Relative references resolve against the graph root rather than the working directory, and
+    that is the whole point of this function. A paper's reference is written once in its
+    `index.md` and then copied verbatim into every claim file's `assertions:` block, so an
+    absolute path there writes one machine's home directory into every file of a corpus — 87
+    of them, in the run that found this. It also could not be anything else before now: the
+    commands run from `extract/` and from the repository root, so a relative path meant two
+    different files depending on which one invoked it, and only an absolute path worked.
+    """
+    p = Path(str(ref)).expanduser()
+    return p if p.is_absolute() else (graph_root() / p)
 
 # Kept at the historical path: moving it would silently re-download every cached paper. The
 # rename belongs with the package rename (§ 7 step 4), not here.
@@ -151,12 +172,12 @@ class FileSource:
     SUFFIX_FORMAT: dict[str, Format] = {".pdf": "pdf", ".xml": "jats", ".nxml": "jats"}
 
     def handles(self, ref: str) -> bool:
-        p = Path(str(ref)).expanduser()
+        p = local_path(ref)
         return p.suffix.lower() in self.SUFFIX_FORMAT and p.is_file()
 
     def resolve(self, ref: str, cache_dir: Path | None = None,
                 prefer: Format | None = None) -> Resolved:
-        path = Path(str(ref)).expanduser().resolve()
+        path = local_path(ref).resolve()
         if not path.is_file():
             raise FileNotFoundError(path)
         fmt = self.SUFFIX_FORMAT.get(path.suffix.lower())
@@ -203,7 +224,7 @@ class PandocSource:
               ".htm": "html"}
 
     def handles(self, ref: str) -> bool:
-        p = Path(str(ref)).expanduser()
+        p = local_path(ref)
         return p.suffix.lower() in self.SUFFIXES and p.is_file()
 
     @staticmethod
@@ -229,7 +250,7 @@ class PandocSource:
 
     def resolve(self, ref: str, cache_dir: Path | None = None,
                 prefer: Format | None = None) -> Resolved:
-        path = Path(str(ref)).expanduser().resolve()
+        path = local_path(ref).resolve()
         if not path.is_file():
             raise FileNotFoundError(path)
         if prefer and prefer != "jats":
