@@ -109,8 +109,8 @@ def stream(body):
         error = {"exception": str(e)[:300]}
     return "".join(content), reasoning, model, usage, error
 
-def once(paper, text, model, out, tag, i):
-    sysm = open(os.path.join(PROMPTS, "system_message.txt"), encoding="utf-8").read()
+def once(paper, text, model, out, tag, i, prompt="system_message.txt"):
+    sysm = open(os.path.join(PROMPTS, prompt), encoding="utf-8").read()
     pre = open(os.path.join(PROMPTS, "user_preamble.txt"), encoding="utf-8").read()
     body = {"model": model, "temperature": 0.2, "max_tokens": 60000, "stream": True, "usage": {"include": True},
             "messages": [{"role": "system", "content": sysm},
@@ -133,7 +133,7 @@ def once(paper, text, model, out, tag, i):
     meta = {"paper": paper, "tag": tag, "run": i, "model_requested": model, "model_answered": last["model_answered"],
             "seconds": round(sum(a["seconds"] for a in attempts), 1), "usage": last["usage"], "attempts": attempts,
             "parsed": graph is not None, "nodes": len(graph["nodes"]) if graph else None,
-            "edges": len(graph["edges"]) if graph else None, "input_chars": len(text),
+            "edges": len(graph["edges"]) if graph else None, "input_chars": len(text), "prompt": prompt, "route": "openrouter api",
             "when": time.strftime("%Y-%m-%dT%H:%M:%S")}
     open(base + ".raw.txt", "w", encoding="utf-8").write(content)
     json.dump(meta, open(base + ".meta.json", "w"), indent=1)
@@ -145,13 +145,15 @@ def run(paper, args):
     model = args[args.index("--model") + 1] if "--model" in args else DEFAULT_MODEL
     runs = int(args[args.index("--runs") + 1]) if "--runs" in args else 1
     tag = args[args.index("--tag") + 1] if "--tag" in args else model.split("/")[-1].replace(":", "-")
+    prompt = args[args.index("--prompt") + 1] if "--prompt" in args else "system_message.txt"
     out = os.path.join(ROOT, "runs", paper, "mira-baseline")
     os.makedirs(out, exist_ok=True)
     text = paper_text(paper)
     if len(text) > SINGLE_CALL_MAX:
         sys.exit(f"paper too big for one call: {len(text)} chars")
-    for i in range(1, runs + 1):
-        once(paper, text, model, out, tag, i)
+    start = 1 + len(glob.glob(os.path.join(out, f"{tag}.run*.meta.json")))
+    for i in range(start, start + runs):
+        once(paper, text, model, out, tag, i, prompt)
     summarize(paper)
 
 # ── the summary the site renders ─────────────────────────────────────────────────────────────
@@ -186,10 +188,37 @@ def summarize(paper):
     json.dump(summary, open(os.path.join(out, "summary.json"), "w"), indent=1)
     print(json.dumps(summary, indent=1))
 
+def answer(paper, args):
+    """Record a reply produced outside this script — a Claude Code subagent answering the dumped
+    prompt, as the extractor's own `--answer` mode does — as a run, with the same parse and files.
+    Usage: answer <paper> <reply-file> --tag <tag> --model <id> [--prompt <system-message-name>]"""
+    path = args[0]
+    tag = args[args.index("--tag") + 1]
+    model = args[args.index("--model") + 1]
+    prompt = args[args.index("--prompt") + 1] if "--prompt" in args else "system_message.txt"
+    out = os.path.join(ROOT, "runs", paper, "mira-baseline")
+    content = open(path, encoding="utf-8").read()
+    graph = parse_graph(content)
+    i = 1 + len(glob.glob(os.path.join(out, f"{tag}.run*.meta.json")))
+    base = os.path.join(out, f"{tag}.run{i}")
+    meta = {"paper": paper, "tag": tag, "run": i, "model_requested": model, "model_answered": model, "seconds": None,
+            "usage": None, "attempts": [{"attempt": 1, "seconds": None, "model_answered": model, "usage": None, "error": None,
+                                         "content_chars": len(content), "reasoning_chars": 0, "parsed": graph is not None}],
+            "parsed": graph is not None, "nodes": len(graph["nodes"]) if graph else None,
+            "edges": len(graph["edges"]) if graph else None, "prompt": prompt, "route": "claude-code subagent",
+            "input_chars": len(paper_text(paper)), "when": time.strftime("%Y-%m-%dT%H:%M:%S")}
+    open(base + ".raw.txt", "w", encoding="utf-8").write(content)
+    json.dump(meta, open(base + ".meta.json", "w"), indent=1)
+    if graph:
+        json.dump(graph, open(base + ".graph.json", "w"), indent=1, ensure_ascii=False)
+    print("RESULT", json.dumps({k: meta[k] for k in ("tag", "run", "parsed", "nodes", "edges", "prompt")}))
+    summarize(paper)
+
 def main():
-    if len(sys.argv) < 3 or sys.argv[1] not in ("run", "summarize"):
+    cmds = {"run": run, "answer": answer, "summarize": lambda p, a: summarize(p)}
+    if len(sys.argv) < 3 or sys.argv[1] not in cmds:
         sys.exit(__doc__)
-    (run if sys.argv[1] == "run" else lambda p, a: summarize(p))(sys.argv[2], sys.argv[3:])
+    cmds[sys.argv[1]](sys.argv[2], sys.argv[3:])
 
 if __name__ == "__main__":
     main()
