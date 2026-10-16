@@ -95,7 +95,12 @@ def cmd_prepare(args: argparse.Namespace) -> int:
     print(f"  doi    = {data['doi']}")
     print(f"  title  = {data['title']}")
     print(f"  path   = {data['extraction_path']}")
-    print(f"  slices = abstract:{len(data['abstract'])}c results:{len(data['results_text'])}c "
+    # `argument` stands in for `results` on a paper that is not IMRaD, and is reported the same
+    # way: this line is where a failed intake is supposed to be visible, and a slice the reader
+    # will be given but the summary never mentions is one nobody checks.
+    body = (f"results:{len(data['results_text'])}c" if not data.get("argument_text")
+            else f"argument:{len(data['argument_text'])}c")
+    print(f"  slices = abstract:{len(data['abstract'])}c {body} "
           f"captions:{len(data['captions_text'])}c methods:{len(data['methods_text'])}c")
     print(f"  figures= {len(data['figure_captions'])}  tables={len(data['tables'])}")
     print(f"  written: {path}")
@@ -292,7 +297,7 @@ def cmd_write(args: argparse.Namespace) -> int:
     # runner takes afterwards hashes it whole, carry-over included.
     if replacing:
         arch = archive_dir(cfg, draft.paper_slug)
-        s = carry_over(cfg, draft.paper_slug, arch)
+        s = carry_over(cfg, draft.paper_slug, arch, paper_doi=draft.paper_doi)
         print(f"  archived previous version to {arch.relative_to(cfg.root)}")
         print(f"  carried: {len(s['alt_claims'])} alt- claim(s), {len(s['rules_out'])} "
               f"rules-out edge(s), {len(s['reproductions'])} reproduction record(s)"

@@ -58,6 +58,29 @@ SECTION_PATTERNS = {
     ),
 }
 
+# The title keywords each IMRaD bucket answers to, for a paper whose <sec> carries no
+# sec-type. One mapping rather than a chain of `if sec_type == ...` returns, because the
+# non-IMRaD path asks the same question in reverse: which sections did no bucket take?
+SEC_TYPE_KEYWORDS: dict[str, tuple[str, ...]] = {
+    "intro": ("intro",),
+    "results": ("result",),
+    "discussion": ("discuss",),
+    "methods": ("method", "material"),
+}
+
+# Back matter a converted manuscript carries as ordinary body sections. A publisher's JATS puts
+# these in <back>; pandoc has nowhere else to put them, so without this they would be read as
+# argument — and "References and recommended reading" would hand a reader the bibliography as
+# though the paper were asserting it.
+BACK_MATTER_TITLE = re.compile(
+    r"^(?:references?\b.*|bibliography|acknowledge?ments?|declarations?\b.*|"
+    r"data availability.*|code availability.*|funding.*|competing interests?|"
+    r"conflicts? of interest.*|author contributions?|supplementary\b.*)$", re.IGNORECASE)
+
+# A caption written as a headed section rather than as a <fig>, which is what an author's own
+# manuscript looks like before a publisher marks it up.
+FIGURE_SECTION_TITLE = re.compile(r"^(?:figure|fig\.?)\s+(?P<num>S?\d+)\b", re.IGNORECASE)
+
 # Figure caption start — eLife uses "Figure N." or "Figure N | " patterns.
 # Allow Fig. abbreviation, supplementary figures (S prefix), and mixed casing.
 FIG_CAPTION_START = re.compile(
@@ -103,6 +126,10 @@ SECTIONS: tuple[tuple[str, str, bool], ...] = (
     ("abstract",      "abstract",           False),
     ("introduction",  "introduction_text",  False),
     ("results",       "results_text",       False),
+    # Only ever filled when `results` is empty — a paper that is not IMRaD. The two never
+    # coexist, so `results` keeps its meaning and this one needs no place in the ordering
+    # relative to it.
+    ("argument",      "argument_text",      False),
     ("discussion",    "discussion_text",    False),
     ("captions",      "captions_text",      False),
     ("tables",        "tables_text",        False),
@@ -139,6 +166,10 @@ class PreparedPaper:
     # until now, so no reader saw them. Defaults keep every committed prepared.json loadable.
     introduction_text: str = ""
     discussion_text: str = ""
+    # A review, a perspective or an opinion piece has no Results and no Methods: its argument
+    # sits in sections titled for what they argue. Empty for every IMRaD paper, so no committed
+    # prepared.json moves.
+    argument_text: str = ""
     # The paper cut into the numbered spans coverage segments, so a reader can cite the id in
     # front of a sentence and coverage can match a claim to a span rather than re-finding it by
     # string. One dict per span: {uid, section, text}. Filled by prepare via the segmenter.
@@ -281,27 +312,85 @@ def _main_scopes(root: etree._Element) -> list[etree._Element]:
     return scopes or [root]
 
 
+def _sec_title(sec: etree._Element) -> str:
+    """A section's title, lowercased and stripped; "" when it has none."""
+    title_el = sec.find("title")
+    return (title_el.text or "").lower().strip() if title_el is not None else ""
+
+
 def _section_text(root: etree._Element, sec_type: str) -> str:
-    """Extract full text of a body section by sec-type attribute."""
+    """Every body section of this type, in reading order.
+
+    It used to take the first and stop. A paper whose Results is split across two top-level
+    sections kept one of them and dropped the other with nothing to say so — the slice came
+    back populated, so no downstream check could tell. Joining is what the one-section case
+    already meant.
+    """
     body = root.find("body")
     if body is None:
         return ""
-    for sec in body.findall(f"sec[@sec-type='{sec_type}']"):
-        return _text(sec)
+    typed = [_text(sec) for sec in body.findall(f"sec[@sec-type='{sec_type}']")]
+    if typed:
+        return "\n\n".join(typed)
     # Fallback: match by title text (some papers use non-standard sec-type)
+    keywords = SEC_TYPE_KEYWORDS.get(sec_type, ())
+    return "\n\n".join(_text(sec) for sec in body.findall("sec")
+                       if any(k in _sec_title(sec) for k in keywords))
+
+
+def _argument_text(root: etree._Element) -> str:
+    """The body of a paper that is not IMRaD.
+
+    A review, a perspective or an opinion piece states its argument in sections titled for what
+    they argue — "Movement is computation, not noise" — and no IMRaD bucket claims a title like
+    that. The whole body was therefore dropped and the readers got the abstract alone, which is
+    not a thin reading but no reading: the slices said `results:0c captions:0c methods:0c` and
+    the chain ran anyway.
+
+    Everything no bucket took, minus the back matter and the captions, both of which have
+    somewhere better to be. Consulted only when `results_text` is empty, so an IMRaD paper's
+    prepared.json does not move and no corpus is marked stale by this.
+    """
+    body = root.find("body")
+    if body is None:
+        return ""
+    claimed = {k for ks in SEC_TYPE_KEYWORDS.values() for k in ks}
+    keep = []
     for sec in body.findall("sec"):
-        title_el = sec.find("title")
-        if title_el is not None and title_el.text:
-            t = title_el.text.lower().strip()
-            if sec_type == "methods" and ("method" in t or "material" in t):
-                return _text(sec)
-            if sec_type == "results" and "result" in t:
-                return _text(sec)
-            if sec_type == "intro" and "intro" in t:
-                return _text(sec)
-            if sec_type == "discussion" and "discuss" in t:
-                return _text(sec)
-    return ""
+        title = _sec_title(sec)
+        if sec.get("sec-type") or any(k in title for k in claimed):
+            continue
+        if BACK_MATTER_TITLE.match(title) or FIGURE_SECTION_TITLE.match(title):
+            continue
+        keep.append(_text(sec))
+    return "\n\n".join(t for t in keep if t)
+
+
+def _figure_sections(root: etree._Element) -> list[FigureCaption]:
+    """Captions carried as body sections titled "Figure N".
+
+    A publisher's JATS puts every figure in a <fig> with a <caption>. A manuscript converted
+    from the author's own Markdown or Word file has no such element, because the author wrote
+    the captions as headed sections — they are captions in everything but markup, panel labels
+    included. Consulted only when the document has no <fig> at all, so a marked-up paper is
+    untouched.
+
+    No `element_id`: a pandoc section id is a slug made from the heading, not a name the
+    document gave the figure, so `base_id` derives `fig1` as it does from a PDF rather than
+    inheriting `figure-1`.
+    """
+    body = root.find("body")
+    if body is None:
+        return []
+    out: list[FigureCaption] = []
+    for sec in body.findall("sec"):
+        m = FIGURE_SECTION_TITLE.match(_sec_title(sec))
+        if not m:
+            continue
+        text = _text(sec)
+        out.append(FigureCaption(figure_num=m.group("num").upper(), text=text,
+                                 panels=_panel_letters(text)))
+    return out
 
 
 def _panel_letters(caption: str) -> list[str]:
@@ -494,7 +583,10 @@ def parse_jats(xml_path: Path, doi: str, paper_slug_override: str | None = None,
     results_text = _section_text(root, "results")
     discussion_text = _section_text(root, "discussion")
     methods_text = _section_text(root, "methods")
-    captions = _extract_jats_figures(root)
+    # Two fallbacks for a manuscript that no publisher has marked up, each firing only where
+    # the marked-up form found nothing, so a publisher's JATS takes neither path.
+    argument_text = _argument_text(root) if not results_text.strip() else ""
+    captions = _extract_jats_figures(root) or _figure_sections(root)
     tables = _extract_jats_tables(root)
     appendix = _extract_appendices(root)
     supplementary = _extract_supplementary(root)
@@ -514,6 +606,7 @@ def parse_jats(xml_path: Path, doi: str, paper_slug_override: str | None = None,
         supplementary_text=supplementary,
         introduction_text=introduction_text,
         discussion_text=discussion_text,
+        argument_text=argument_text,
         extraction_path="jats",
         extraction_path_note=provenance.note if provenance else f"JATS-XML from {xml_path}",
         figure_captions=captions,
