@@ -214,8 +214,82 @@ def answer(paper, args):
     print("RESULT", json.dumps({k: meta[k] for k in ("tag", "run", "parsed", "nodes", "edges", "prompt")}))
     summarize(paper)
 
+def second_pass(paper, args):
+    """A second stage over an existing run's graph: one model call given the graph and the paper, whose
+    reply is a PATCH (new nodes, new edges) merged onto the base graph and recorded as a new run.
+    Usage: pass <paper> <base-run-name> --prompt <pass-prompt> --tag <tag> [--model id]"""
+    base_name = args[0]
+    prompt = args[args.index("--prompt") + 1]
+    tag = args[args.index("--tag") + 1]
+    model = args[args.index("--model") + 1] if "--model" in args else "anthropic/claude-sonnet-4.5"
+    out = os.path.join(ROOT, "runs", paper, "mira-baseline")
+    base = json.load(open(os.path.join(out, base_name + ".graph.json")))
+    text = paper_text(paper)
+    sysm = open(os.path.join(PROMPTS, prompt), encoding="utf-8").read()
+    listing = "\n".join(f'{n["id"]}  [{n["type"]}]  {n["text"]}' for n in base["nodes"])
+    edges = "\n".join(f'{e["relation"]}  {e["subject"]} -> {e["object"]}' for e in base["edges"]
+                      if e["relation"] in ("addresses", "supports", "opposes"))
+    user = (f"EXISTING GRAPH — nodes:\n{listing}\n\nEXISTING GRAPH — argument edges:\n{edges}\n\n---\n"
+            f"THE PAPER:\n{text}")
+    body = {"model": model, "temperature": 0.2, "max_tokens": 30000, "stream": True, "usage": {"include": True},
+            "messages": [{"role": "system", "content": sysm}, {"role": "user", "content": user}]}
+    i = 1 + len(glob.glob(os.path.join(out, f"{tag}.run*.meta.json")))
+    name = f"{tag}.run{i}"
+    t0 = time.time()
+    content, reasoning, answered, usage, error = stream(body)
+    secs = round(time.time() - t0, 1)
+    patch = None
+    if content:
+        t = content.strip()
+        m = re.match(r"^```[^\n]*\n([\s\S]*?)\n```$", t)
+        if m:
+            t = m.group(1).strip()
+        for s in (t, t[t.find("{"): t.rfind("}") + 1]):
+            try:
+                p = json.loads(s)
+                if isinstance(p, dict) and "nodes" in p and "edges" in p:
+                    patch = p
+                    break
+            except Exception:
+                pass
+    open(os.path.join(out, name + ".raw.txt"), "w", encoding="utf-8").write(content or "")
+    merged = None
+    dropped = []
+    if patch:
+        ids = {n["id"] for n in base["nodes"]} | {n["id"] for n in patch["nodes"]}
+        legal = {"addresses": ("Claim", "Question"), "supports": (("Evidence", "Claim"), "Claim"),
+                 "opposes": (("Evidence", "Claim"), "Claim"), "grounds": ("Study", "Evidence")}
+        types = {n["id"]: n["type"] for n in base["nodes"] + patch["nodes"]}
+        keep = []
+        for e in patch["edges"]:
+            ok = e.get("subject") in ids and e.get("object") in ids and e.get("relation") in legal
+            if ok:
+                s, o = legal[e["relation"]]
+                ok = (types[e["subject"]] in (s if isinstance(s, tuple) else (s,))) and types[e["object"]] == o
+            (keep if ok else dropped).append(e)
+        merged = {**base, "nodes": base["nodes"] + patch["nodes"], "edges": base["edges"] + keep,
+                  "second_pass": {"prompt": prompt, "base": base_name, "added_nodes": len(patch["nodes"]),
+                                  "added_edges": len(keep), "dropped_edges": dropped, "notes": patch.get("notes")}}
+        json.dump(merged, open(os.path.join(out, name + ".graph.json"), "w"), indent=1, ensure_ascii=False)
+        json.dump(patch, open(os.path.join(out, name + ".patch.json"), "w"), indent=1, ensure_ascii=False)
+    meta = {"paper": paper, "tag": tag, "run": i, "model_requested": model, "model_answered": answered, "seconds": secs,
+            "usage": usage, "attempts": [{"attempt": 1, "seconds": secs, "model_answered": answered, "usage": usage,
+                                          "error": error, "content_chars": len(content or ""), "reasoning_chars": reasoning,
+                                          "parsed": patch is not None}],
+            "parsed": patch is not None, "nodes": len(merged["nodes"]) if merged else None,
+            "edges": len(merged["edges"]) if merged else None, "prompt": prompt, "route": "openrouter api",
+            "second_pass_over": base_name, "input_chars": len(user), "when": time.strftime("%Y-%m-%dT%H:%M:%S")}
+    json.dump(meta, open(os.path.join(out, name + ".meta.json"), "w"), indent=1)
+    print("RESULT", json.dumps({"run": name, "parsed": patch is not None,
+                                "added_nodes": len(patch["nodes"]) if patch else None,
+                                "added_edges": len(merged["edges"]) - len(base["edges"]) if merged else None,
+                                "dropped_edges": len(dropped), "seconds": secs, "error": error}))
+    if patch and patch.get("notes"):
+        print("NOTES", patch["notes"])
+    summarize(paper)
+
 def main():
-    cmds = {"run": run, "answer": answer, "summarize": lambda p, a: summarize(p)}
+    cmds = {"run": run, "answer": answer, "pass": second_pass, "summarize": lambda p, a: summarize(p)}
     if len(sys.argv) < 3 or sys.argv[1] not in cmds:
         sys.exit(__doc__)
     cmds[sys.argv[1]](sys.argv[2], sys.argv[3:])
