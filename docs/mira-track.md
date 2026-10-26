@@ -101,6 +101,24 @@ three `NodeSchema` subclasses. Validate the JSON-LD with `scripts/validate_mira.
 the upstream `sh:in` violations and the closed `prov:Activity` refusal of title/description on
 Study nodes).
 
+**5b. Verify and view the deliverable.** What eLife asked for (Paul Shannon, 6 Oct) is one graph
+with summaries and anchors they can load into their prototype. The checklist and the review
+surface:
+
+```bash
+cd $CLAIM_GRAPHS_ROOT/runs/<paper>/mira-hand
+python3 <paper>_hand.py                                   # rebuild; refuses on a non-verbatim anchor
+python3 <cg>/scripts/mira_verify.py <paper>-hand.graph.json <page-text>.txt     # the checklist → .verification.json; exit 1 on any problem
+python3 <cg>/scripts/mira_viewer.py <paper>-hand.graph.json <page-text>.txt     # → <paper>-hand.viewer.html
+```
+The viewer is one self-contained page: the article with claim markers at their anchors and the
+summary in the margin (the prototype's reading), a claims tree coloured by hypothesis / finding
+/ alternative / evidence / check, the verification table, and the JSON. Publish it as its own
+artifact for review (Gädeke: https://claude.ai/artifact/2hV3hPEa8P1tgkVuzCrsHJ). Rules for the
+deliverable, agreed 26 Oct: summaries are one or two plain sentences with no editorial remarks
+(those go in `notes`); subclasses are shown, coloured; the extractor-shaped `.graph.json` is
+what goes to eLife's prototype, the JSON-LD alongside it for Paul.
+
 **6. The record.** `python3 scripts/mira_report.py <paper>` writes
 `runs/<paper>/mira-report/site/` (not committed); publish `index.html` as the artifact page and
 the other files as its files. Every count and quote on the pages comes from the run files.
