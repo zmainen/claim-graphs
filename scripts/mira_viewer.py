@@ -64,7 +64,7 @@ main{padding-block:1rem 4rem}main:not(.on){display:none !important}main.on{displ
 .text .fig{font-size:.92rem;color:var(--ink-2);border-left:3px solid var(--rule);padding-left:.8rem;margin:1rem 0}
 mark.anc{background:none;border-bottom:2px solid;cursor:pointer;padding-bottom:1px}mark.anc:hover,mark.anc.on{background:var(--paper-2)}
 .tag{display:inline-block;font:600 .66rem var(--sans);letter-spacing:.05em;text-transform:uppercase;padding:.05rem .35rem;border-radius:2px;color:#fff;margin-left:.25rem;vertical-align:middle;cursor:pointer}
-.k-Hypothesis{background:var(--hyp)}.k-Finding{background:var(--find)}.k-Alternative{background:var(--alt)}.k-Check{background:var(--chk)}.k-Evidence{background:var(--ev)}.k-Question{background:var(--q)}.k-Request{background:var(--req)}.k-Other{background:var(--ink-3)}
+.k-Hypothesis{background:var(--hyp)}.k-Finding{background:var(--find)}.k-Alternative{background:var(--alt)}.k-Check{background:var(--chk)}.k-Evidence{background:var(--ev)}.k-Question{background:var(--q)}.k-Request{background:var(--req)}.k-Study,.k-Protocol,.k-SourceDocument{background:var(--ink-3)}
 mark.anc{border-color:var(--ink-3)}mark.anc.k-Hypothesis{border-color:var(--hyp)}mark.anc.k-Finding{border-color:var(--find)}mark.anc.k-Alternative{border-color:var(--alt)}mark.anc.k-Check{border-color:var(--chk)}mark.anc.k-Evidence{border-color:var(--ev)}mark.anc.k-Question{border-color:var(--q)}mark.anc.k-Request{border-color:var(--req)}
 .margin{font-size:.85rem;color:var(--ink-2);border-left:2px solid var(--rule);padding-left:.7rem;margin:.2rem 0 1rem}.margin div{margin:.2rem 0;cursor:pointer}.margin div:hover{color:var(--ink)}
 aside.panel{position:sticky;top:4.2rem;align-self:start;max-height:calc(100vh - 5rem);overflow:auto;background:var(--paper-2);border:1px solid var(--rule);border-radius:6px;padding:1rem;font-size:.92rem;display:grid;gap:.5rem}
@@ -93,7 +93,7 @@ const D=JSON.parse(document.getElementById('data').textContent);const G=D.graph,
 const TN=C?Object.fromEntries(C.graph.nodes.map(n=>[n.id,n])):{};const O2T=C?C.align.ours_to_theirs:null;
 const prov=n=>!C?'':O2T[n.id]?`<span class="prov had" title="${esc(O2T[n.id].map(t=>TN[t].text).join('\n'))}">${C.label}: ${O2T[n.id].join(', ')}</span>`:`<span class="prov new">new</span>`;
 const N=Object.fromEntries(G.nodes.map(n=>[n.id,n]));const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const kind=n=>n.subtype==='Hypothesis'?'Hypothesis':n.subtype==='Alternative'?'Alternative':n.subtype==='Check'?'Check':n.type==='Claim'?'Finding':n.type==='Evidence'?'Evidence':n.type==='Question'?'Question':n.type==='Request'?'Request':'Other';
+const kind=n=>n.subtype==='Hypothesis'?'Hypothesis':n.subtype==='Alternative'?'Alternative':n.subtype==='Check'?'Check':n.type==='Claim'?'Finding':n.type==='Evidence'?'Evidence':n.type==='Question'?'Question':n.type;
 const outs={},ins={};for(const e of G.edges){(outs[e.subject]??=[]).push(e);(ins[e.object]??=[]).push(e)}
 // tabs
 document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tabs button').forEach(x=>x.setAttribute('aria-selected',x===b));document.querySelectorAll('main').forEach(m=>m.classList.toggle('on',m.id===b.dataset.tab))});
