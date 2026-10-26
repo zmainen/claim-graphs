@@ -60,8 +60,10 @@ def main():
         a = n.get("anchor")
         flag(nid, "anchor", bool(a) and a in text, "" if a and a in text else ("missing" if not a else "not verbatim"))
         if n["type"] == "Evidence":
-            ok = nid in grounds and bool(n.get("panel") or n.get("study"))
-            flag(nid, "evidence", ok, "" if ok else ("no study" if nid not in grounds else "no panel"))
+            # grounded in a Study, or a cited finding whose sourceDocument is a SourceDocument node
+            cited = n.get("sourceDocument") in N and N[n["sourceDocument"]]["type"] == "SourceDocument"
+            ok = (nid in grounds or cited) and bool(n.get("panel") or n.get("study"))
+            flag(nid, "evidence", ok, "" if ok else ("no study or cited source" if not (nid in grounds or cited) else "no panel"))
             if n.get("panel") and re.match(r"(Figure|Table) \d", n["panel"]):
                 flag(nid, "figure", bool(n.get("figure")), "" if n.get("figure") else "panel named, no figure link")
         if n["type"] == "Claim":

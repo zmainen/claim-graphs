@@ -8,6 +8,10 @@ The JSON, the article text and the verification verdicts are embedded, so the fi
 deliverable's review surface and can be opened anywhere. Nothing is typed into it by hand.
 
 Usage: mira_viewer.py <graph.json> <anchor-text.txt> [--out viewer.html]
+                      [--compare <other.graph.json> <alignment.json> [--compare-label "eLife's graph"]]
+With --compare the viewer gets a "Compared with…" tab: provenance badges on every node of the tree
+(its counterpart in the other graph, or "new") and a three-column ledger per node type. The alignment
+file comes from mira_align.py.
 Expects <graph>.verification.json beside the graph (run mira_verify.py first).
 """
 import json, os, sys
@@ -21,7 +25,12 @@ def main():
     vpath = gpath.replace(".graph.json", ".verification.json")
     v = json.load(open(vpath)) if os.path.exists(vpath) else {"nodes": {}, "edges": [], "summary": {}}
     title = g.get("paper", {}).get("title", "MIRA graph")
-    payload = json.dumps({"graph": g, "text": text, "verification": v}, ensure_ascii=False).replace("</", "<\\/")
+    cmp = None
+    if "--compare" in a:
+        i = a.index("--compare")
+        cmp = {"graph": json.load(open(a[i + 1], encoding="utf-8")), "align": json.load(open(a[i + 2], encoding="utf-8")),
+               "label": a[a.index("--compare-label") + 1] if "--compare-label" in a else "eLife's graph"}
+    payload = json.dumps({"graph": g, "text": text, "verification": v, "compare": cmp}, ensure_ascii=False).replace("</", "<\\/")
     html = TEMPLATE.replace("__TITLE__", title.replace("<", "&lt;")).replace("__PAYLOAD__", payload)
     open(out, "w", encoding="utf-8").write(html)
     print(f"wrote {out} ({len(html) // 1024} KB)")
@@ -44,6 +53,8 @@ body{background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:
 a{color:var(--link)} button{font:inherit;cursor:pointer}
 header.top{display:flex;flex-wrap:wrap;gap:.4rem 1.2rem;align-items:baseline;padding:.8rem 0 .4rem;border-bottom:1px solid var(--rule);position:sticky;top:env(safe-area-inset-top,0px);background:var(--paper);z-index:3}
 header.top h1{font:600 1.05rem var(--sans);margin:0}
+.prov{font-size:.72rem;padding:0 .35rem;border-radius:3px;margin-right:.4rem;border:1px solid var(--rule)}.prov.had{color:var(--ink-2)}.prov.new{color:var(--paper);background:var(--find);border-color:var(--find)}
+#compare.on{display:block;max-width:1200px;margin:0 auto;padding:1rem 0}#compare table{width:100%;border-collapse:collapse;font-size:.9rem;margin:.4rem 0 1.4rem}#compare th,#compare td{vertical-align:top;text-align:left;padding:.35rem .5rem;border-top:1px solid var(--rule);width:33%}#compare th{font-weight:600;color:var(--ink-2)}#compare td .s{color:var(--ink-3);font-size:.8rem}#compare h2{font-size:1rem;margin:1.2rem 0 .2rem}
 .tabs{display:flex;gap:.2rem;margin-left:auto}.tabs button{background:none;border:1px solid var(--rule);border-radius:4px;padding:.3rem .7rem;color:var(--ink-2)}.tabs button[aria-selected="true"]{background:var(--paper-2);color:var(--ink);border-color:var(--ink-3)}
 .legend{display:flex;flex-wrap:wrap;gap:.3rem .9rem;font-size:.82rem;color:var(--ink-2)}.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:.3rem;vertical-align:-1px}
 main{padding-block:1rem 4rem}main:not(.on){display:none !important}main.on{display:block}
@@ -73,12 +84,14 @@ pre{font-size:.78rem;white-space:pre-wrap;word-break:break-word}
 </style></head><body>
 <header class="top"><h1>__TITLE__</h1>
 <div class="legend"><span><i style="background:var(--q)"></i>question</span><span><i style="background:var(--hyp)"></i>hypothesis</span><span><i style="background:var(--find)"></i>finding</span><span><i style="background:var(--alt)"></i>alternative</span><span><i style="background:var(--ev)"></i>evidence</span><span><i style="background:var(--chk)"></i>check</span><span><i style="background:var(--req)"></i>request</span></div>
-<div class="tabs" role="tablist"><button role="tab" data-tab="article" aria-selected="true">Article</button><button role="tab" data-tab="tree">Claims tree</button><button role="tab" data-tab="checks">Verification</button><button role="tab" data-tab="json">JSON</button></div></header>
+<div class="tabs" role="tablist"><button role="tab" data-tab="article" aria-selected="true">Article</button><button role="tab" data-tab="tree">Claims tree</button><button role="tab" data-tab="checks">Verification</button><button role="tab" data-tab="compare" id="cmptab" hidden>Compared</button><button role="tab" data-tab="json">JSON</button></div></header>
 <main id="article" class="on"><div class="text" id="text"></div><aside class="panel" id="panel"><h3>Select a marker</h3><p class="q">Click an underlined passage or a tag to see the claim, its summary, where it comes from and what it supports or opposes.</p></aside></main>
-<main id="tree"></main><main id="checks"></main><main id="json"><pre id="jsonpre"></pre></main>
+<main id="tree"></main><main id="checks"></main><main id="compare"></main><main id="json"><pre id="jsonpre"></pre></main>
 <script id="data" type="application/json">__PAYLOAD__</script>
 <script>
-const D=JSON.parse(document.getElementById('data').textContent);const G=D.graph,T=D.text,V=D.verification;
+const D=JSON.parse(document.getElementById('data').textContent);const G=D.graph,T=D.text,V=D.verification,C=D.compare;
+const TN=C?Object.fromEntries(C.graph.nodes.map(n=>[n.id,n])):{};const O2T=C?C.align.ours_to_theirs:null;
+const prov=n=>!C?'':O2T[n.id]?`<span class="prov had" title="${esc(O2T[n.id].map(t=>TN[t].text).join('\n'))}">${C.label}: ${O2T[n.id].join(', ')}</span>`:`<span class="prov new">new</span>`;
 const N=Object.fromEntries(G.nodes.map(n=>[n.id,n]));const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const kind=n=>n.subtype==='Hypothesis'?'Hypothesis':n.subtype==='Alternative'?'Alternative':n.subtype==='Check'?'Check':n.type==='Claim'?'Finding':n.type==='Evidence'?'Evidence':n.type==='Question'?'Question':n.type==='Request'?'Request':'Other';
 const outs={},ins={};for(const e of G.edges){(outs[e.subject]??=[]).push(e);(ins[e.object]??=[]).push(e)}
@@ -102,7 +115,7 @@ function show(id){const n=N[id];if(!n)return;document.querySelectorAll('mark.anc
  document.querySelector(`mark[data-id="${id}"]`)?.scrollIntoView({block:'center',behavior:'smooth'})}
 document.body.addEventListener('click',e=>{const el=e.target.closest('[data-id],[data-go]');if(!el)return;e.preventDefault();const id=el.dataset.id||el.dataset.go;document.querySelector('[data-tab="article"]').click();show(id)});
 // ── tree ────────────────────────────────────────────────────────────────────────────────
-const node=(n,extra='')=>`<div class="node ${kind(n)}" id="t-${n.id}"><div class="t">${esc(n.text)}</div><div class="s">${esc(n.description||'')}</div><div class="m"><code>${n.id}</code>${n.panel?` · ${esc(n.panel)}`:''}${n.study?` · ${esc(n.study.replace('st','Study '))}`:''}${n.figure?` <a href="${esc(n.figure.page)}" target="_blank">figure ↗</a>`:''}${n.anchor?` <a href="#" data-go="${n.id}">in text</a>`:''}</div>${n.figure?`<img class="thumb" src="${esc(n.figure.thumbnail)}" alt="">`:''}${extra}</div>`;
+const node=(n,extra='')=>`<div class="node ${kind(n)}" id="t-${n.id}"><div class="t">${esc(n.text)}</div><div class="s">${esc(n.description||'')}</div><div class="m">${prov(n)}<code>${n.id}</code>${n.panel?` · ${esc(n.panel)}`:''}${n.study?` · ${esc(n.study.replace('st','Study '))}`:''}${n.figure?` <a href="${esc(n.figure.page)}" target="_blank">figure ↗</a>`:''}${n.anchor?` <a href="#" data-go="${n.id}">in text</a>`:''}</div>${n.figure?`<img class="thumb" src="${esc(n.figure.thumbnail)}" alt="">`:''}${extra}</div>`;
 const evidenceFor=c=>(ins[c.id]||[]).filter(e=>e.relation!=='addresses'&&N[e.subject]?.type==='Evidence').map(e=>({e:N[e.subject],rel:e.relation}));
 const evBlock=c=>{const ev=evidenceFor(c);return ev.length?`<details class="ev"><summary>${ev.length} piece${ev.length>1?'s':''} of evidence</summary><div class="kids">${ev.map(({e,rel})=>node(e,`<div class="m"><span class="rel">${rel}</span></div>`)).join('')}</div></details>`:''};
 let tree='';for(const q of G.nodes.filter(n=>n.type==='Question')){
@@ -127,6 +140,15 @@ document.getElementById('checks').innerHTML=`<p><b>${S.passed??'?'} of ${S.nodes
 <p class="s">Checks: <b>shape</b> (id, type, text) · <b>summary</b> (questions, claims and requests: one or two plain sentences) · <b>anchor</b> (verbatim in the text) · <b>evidence</b> (grounded in a study, names its panel) · <b>figure</b> (a figure panel links to its figure) · <b>structure</b> (every claim reaches a question; every piece of evidence argues something).</p>
 ${rows?`<table><thead><tr><th>node</th><th>text</th><th>failing</th></tr></thead><tbody>${rows}</tbody></table>`:'<p>No node fails a check.</p>'}`;
 document.getElementById('jsonpre').textContent=JSON.stringify(G,null,1);
+// ── compare ─────────────────────────────────────────────────────────────────────────────
+if(C){document.getElementById('cmptab').hidden=false;document.getElementById('cmptab').textContent=`Compared with ${C.label}`;
+ const T2O=C.align.theirs_to_ours;const cell=(n,ours)=>`<div><a href="#" data-go="${ours?n.id:''}" ${ours?'':'onclick="return false"'}><code>${n.id}</code></a> ${ours?`<span class="tag k-${kind(n)}">${kind(n)}</span> `:''}${esc(n.text)}</div>`;
+ const types=['Question','Claim','Evidence','Study','Protocol','SourceDocument','Request'];let h=`<p>Left: nodes only in ${esc(C.label)}. Middle: nodes present in both, aligned by hand (questions, claims, studies, protocols, requests) or by the statistics they quote (evidence). Right: nodes only in this graph. Counts: ${C.graph.nodes.length} nodes there, ${G.nodes.length} here, ${Object.keys(T2O).length} of theirs matched.</p>`;
+ for(const ty of types){const theirs=C.graph.nodes.filter(n=>n.type===ty),ours=G.nodes.filter(n=>n.type===ty);if(!theirs.length&&!ours.length)continue;
+  const only_t=theirs.filter(n=>!T2O[n.id]),only_o=ours.filter(n=>!O2T[n.id]);
+  const both=[];const seen=new Set();for(const t of theirs){const o=T2O[t.id];if(!o||!N[o])continue;const same=t.text.trim()===N[o].text.trim();both.push(`<div>${cell(t,false)}<div class="s">${same?'same wording':'reworded'} →</div>${seen.has(o)?`<div class="s">also → <code>${o}</code></div>`:cell(N[o],true)}</div>`);seen.add(o)}
+  h+=`<h2>${ty} · ${only_t.length} only there · ${both.length} both · ${only_o.length} only here</h2><table><thead><tr><th>only in ${esc(C.label)}</th><th>in both</th><th>only here</th></tr></thead><tbody><tr><td>${only_t.map(n=>cell(n,false)).join('')}</td><td>${both.join('')}</td><td>${only_o.map(n=>cell(n,true)).join('')}</td></tr></tbody></table>`}
+ document.getElementById('compare').innerHTML=h}
 </script></body></html>'''
 
 if __name__ == "__main__":
