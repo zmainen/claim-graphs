@@ -66,9 +66,12 @@ TEMPLATE = r'''<!doctype html>
 :root[data-theme="dark"]{color-scheme:dark;--paper:#17181b;--paper-2:#202228;--ink:#e8e6e1;--ink-2:#b5b2aa;--ink-3:#85827b;--rule:#32353c;--link:#8fb8ea;
  --Q:#c7a3e6;--H:#8fb0ea;--F:#86c79a;--A:#e38b80;--E:#86c79a;--K:#e0aa55;--R:#d6b27c;--S:#999;--P:#999;--D:#999}
 *{box-sizing:border-box}html,body{margin:0;height:100%}
-body{background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1.5;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+body{background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1.5;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;height:100vh;overflow:hidden}
+.split{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,6fr);grid-template-rows:minmax(0,1fr);gap:1.5rem;flex:1;min-height:0}.pane{overflow-y:auto;min-height:0}#article{border-right:1px solid var(--rule);padding-right:1.5rem}
+#arttab,#collapse{display:none}#collapse{display:inline-block;margin-left:.6rem;border-style:dashed}
+@media (max-width:900px){body{height:auto;overflow:auto;display:block}.split{display:block}.pane{overflow:visible}#article{border:0;padding:0}#article:not(.on){display:none}#arttab{display:inline-block}}
 a{color:var(--link)} button{font:inherit;cursor:pointer}
-header.top{display:flex;flex-wrap:wrap;gap:.4rem 1.2rem;align-items:baseline;padding:.8rem 0 .4rem;border-bottom:1px solid var(--rule);position:sticky;top:env(safe-area-inset-top,0px);background:var(--paper);z-index:3}
+header.top{display:flex;flex-wrap:wrap;gap:.4rem 1.2rem;align-items:baseline;padding:.8rem 0 .4rem;border-bottom:1px solid var(--rule);background:var(--paper);z-index:3;flex:none}
 header.top h1{font:600 1.05rem var(--sans);margin:0}
 .tabs{display:flex;gap:.2rem;margin-left:auto}.tabs button{background:none;border:1px solid var(--rule);border-radius:4px;padding:.3rem .7rem;color:var(--ink-2)}.tabs button[aria-selected="true"]{background:var(--paper-2);color:var(--ink);border-color:var(--ink-3)}
 .legend{display:flex;flex-wrap:wrap;gap:.3rem .9rem;font-size:.82rem;color:var(--ink-2)}
@@ -79,7 +82,7 @@ main{padding-block:1rem 4rem}main:not(.on){display:none !important}main.on{displ
 .id.ref{background:none !important;border:1px solid currentColor;font-weight:400;opacity:.85}.id.ref.Q{color:var(--Q)}.id.ref.H{color:var(--H)}.id.ref.F{color:var(--F)}.id.ref.A{color:var(--A)}.id.ref.E{color:var(--E)}.id.ref.K{color:var(--K)}.id.ref.C{color:var(--ink-3)}.id.ref.R{color:var(--R)}.id.ref.S,.id.ref.P,.id.ref.D{color:var(--ink-3)}
 .prov{font-size:.7rem;color:var(--ink-3);margin-left:.4rem;white-space:nowrap}.prov.new{color:var(--F)}
 /* article */
-#article.on{display:block}#article .text{margin-inline:auto}
+#article .text{margin-inline:auto;padding-block:1rem 4rem}
 .text{font-family:var(--serif);font-size:1.06rem;line-height:1.65;max-width:70ch}.text h2{font:600 1.25rem var(--sans);margin:1.8rem 0 .5rem}.text p{margin:0 0 .9rem}
 .text .fig{font-size:.92rem;color:var(--ink-2);border-left:3px solid var(--rule);padding-left:.8rem;margin:1rem 0}
 mark.anc{background:none;color:inherit;border-bottom:2px solid var(--rule);cursor:pointer;padding-bottom:1px}mark.anc:hover,mark.anc.on{background:var(--paper-2)}
@@ -87,8 +90,8 @@ mark.anc{background:none;color:inherit;border-bottom:2px solid var(--rule);curso
 .verify{display:flex;flex-wrap:wrap;gap:.3rem}.verify span{font-size:.72rem;padding:.05rem .4rem;border-radius:2px;background:var(--paper);border:1px solid var(--rule)}.verify .ok{color:var(--F)}.verify .bad{color:var(--A);border-color:var(--A)}
 .rel{font-family:var(--mono);font-size:.75rem;color:var(--link)}
 /* tree: rows */
-#tree{max-width:80ch;margin-inline:auto}.qb{margin:1.6rem 0}.qb>h2{font:600 1.15rem var(--serif);margin:0 0 .2rem;display:flex;gap:.6rem;align-items:baseline}.qb>.drawer{margin-bottom:.8rem}.qb>.s{color:var(--ink-2);margin:0 0 .6rem}
-.row{display:grid;grid-template-columns:auto 1fr;gap:.6rem;align-items:baseline;padding:.3rem 0;border-top:1px solid var(--rule)}.row:hover{background:var(--paper-2)}
+#tree{max-width:80ch;margin-inline:auto}.row.open>.id{box-shadow:0 0 0 2px var(--paper),0 0 0 3px currentColor}.row.cur{background:var(--paper-2)}mark.anc.on{background:var(--paper-2);border-bottom-color:var(--ink)}.qb{margin:1.6rem 0}.qb>h2{font:600 1.15rem var(--serif);margin:0 0 .2rem;display:flex;gap:.6rem;align-items:baseline}.qb>.drawer{margin-bottom:.8rem}.qb>.s{color:var(--ink-2);margin:0 0 .6rem}
+.row{display:grid;grid-template-columns:auto 1fr;gap:.6rem;align-items:baseline;padding:.3rem 0;border-top:1px solid var(--rule);scroll-margin-top:.5rem}.row:hover{background:var(--paper-2)}
 .row .t{cursor:pointer}.row .w{font:600 .68rem var(--sans);letter-spacing:.05em;text-transform:uppercase;color:var(--ink-3);margin-right:.4rem}
 .row.lvl1{margin-left:0}.row.lvl2{margin-left:1.6rem}.row.lvl3{margin-left:3.2rem;font-size:.92rem}.row.lvl3 .t{color:var(--ink-2)}
 details.ev{margin-left:3.2rem}details.ev>summary{cursor:pointer;font-size:.82rem;color:var(--ink-3);padding:.15rem 0}details.ev .row{margin-left:0;font-size:.9rem}
@@ -102,9 +105,9 @@ details.ev{margin-left:3.2rem}details.ev>summary{cursor:pointer;font-size:.82rem
 </style></head><body>
 <header class="top"><h1>__TITLE__</h1>
 <div class="legend"><span><span class="id Q">Q</span> question</span><span><span class="id H">H</span> hypothesis</span><span><span class="id F">F</span> finding</span><span><span class="id A">A</span> alternative</span><span><span class="id E">E</span> evidence</span><span><span class="id K">K</span> check</span><span><span class="id E cited">E</span> cited finding</span><span><span class="id C">C</span> cited work</span><span><span class="id R">R</span> request</span></div>
-<div class="tabs" role="tablist"><button role="tab" data-tab="article" aria-selected="true">Article</button><button role="tab" data-tab="tree">Claims tree</button><button role="tab" data-tab="checks">Verification</button><button role="tab" data-tab="compare" id="cmptab" hidden>Compared</button><button role="tab" data-tab="json">JSON</button></div></header>
-<main id="article" class="on"><div class="text" id="text"></div></main>
-<main id="tree"></main><main id="checks"></main><main id="compare"></main><main id="json"><pre id="jsonpre"></pre></main>
+<div class="tabs" role="tablist"><button role="tab" data-tab="article" id="arttab">Article</button><button role="tab" data-tab="tree" aria-selected="true">Claims</button><button role="tab" data-tab="checks">Verification</button><button role="tab" data-tab="compare" id="cmptab" hidden>Compared</button><button role="tab" data-tab="json">JSON</button><button id="collapse" title="close every open node">collapse</button></div></header>
+<div class="split"><section id="article" class="pane"><div class="text" id="text"></div></section>
+<section class="pane right"><main id="tree" class="on"></main><main id="checks"></main><main id="compare"></main><main id="json"><pre id="jsonpre"></pre></main></section></div>
 <script id="data" type="application/json">__PAYLOAD__</script>
 <script>
 const D=JSON.parse(document.getElementById('data').textContent);const G=D.graph,T=D.text,V=D.verification,C=D.compare;
@@ -118,7 +121,10 @@ const thumb=u=>D.thumbs?.[u]||u;const TN=C?Object.fromEntries(C.graph.nodes.map(
 const prov=n=>!C?'':O2T[n.id]?`<span class="prov" title="${esc(C.label)}: ${esc(O2T[n.id].map(t=>TN[t].text).join('\n'))}">= ${O2T[n.id].join(', ')}</span>`:['Evidence','SourceDocument'].includes(n.type)?'':`<span class="prov new">new</span>`;
 const studyOf=n=>n.study?N[n.study]?.text.split(':')[0]||n.study:'';
 // tabs
-document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tabs button').forEach(x=>x.setAttribute('aria-selected',x===b));document.querySelectorAll('main').forEach(m=>m.classList.toggle('on',m.id===b.dataset.tab))});
+const tab=name=>{document.querySelectorAll('.tabs [data-tab]').forEach(x=>x.setAttribute('aria-selected',x.dataset.tab===name));document.querySelectorAll('main').forEach(m=>m.classList.toggle('on',m.id===name));document.getElementById('article').classList.toggle('on',name==='article')};
+document.querySelectorAll('.tabs [data-tab]').forEach(b=>b.onclick=()=>tab(b.dataset.tab));
+document.getElementById('collapse').onclick=()=>{document.querySelectorAll('.drawer').forEach(d=>d.remove());document.querySelectorAll('.row.open,.row.cur').forEach(r=>r.classList.remove('open','cur'));document.querySelectorAll('mark.anc.on').forEach(m=>m.classList.remove('on'))};
+const narrow=()=>matchMedia('(max-width:900px)').matches;
 // ── article: mark anchors; margin shows chip + summary ──────────────────────────────────
 const anchored=G.nodes.filter(n=>n.anchor&&T.includes(n.anchor)&&n.type!=='SourceDocument').sort((a,b)=>b.anchor.length-a.anchor.length);
 let segs=[{t:T}];
@@ -132,19 +138,24 @@ function verifyBadges(id){const bad=Object.entries(V.nodes?.[id]||{}).filter(([,
 function detail(n){const rel=(list,dir)=>(list||[]).filter(e=>['supports','opposes','addresses','observationStatement','request_target','grounds','follows'].includes(e.relation)).filter(e=>!(dir==='in'&&n.type==='Claim'&&['supports','opposes','request_target'].includes(e.relation))&&!(dir==='out'&&n.type==='Study'&&e.relation==='follows')&&!(dir==='out'&&n.type==='Request'&&e.relation==='request_target')&&!(n.type==='SourceDocument')&&!(e.relation==='describesActivity')&&!(dir==='out'&&n.type==='Claim'&&e.relation==='supports'&&N[e.object].type==='Claim'&&!N[e.object].subtype)).map(e=>{const a=N[e.subject],b=N[e.object],o=dir==='out'?b:a;return `<li>${chip(a,true)} <span class="rel">${e.relation}</span> ${chip(b,true)} ${esc(o.description||o.text)}</li>`}).join('');
  return `<div class="m">${chip(n,true)}${n.study?` · ${esc(studyOf(n))}`:''}${n.panel?` · ${esc(n.panel)}`:''}${prov(n)}</div>${n.type==='SourceDocument'?`<p class="sum">${esc(n.description)}</p>`:`<h3>${esc(n.text)}</h3>`}${n.notes?`<p class="q">${esc(n.notes)}</p>`:''}
  ${n.text.includes(n.anchor)?'':`<p class="q">“${esc(n.anchor)}”</p>`}<p class="m"><a href="#" data-article="${n.id}">article</a>${n.doi?` · <a href="${n.doi.startsWith("http")?esc(n.doi):"https://doi.org/"+esc(n.doi)}" target="_blank">doi:${esc(n.doi.replace(/^https?:\/\/doi\.org\//,""))} ↗</a>`:''}${n.figure?` · <a href="${esc(n.figure.page)}" target="_blank">${esc(n.panel)} ↗</a>`:''}</p>${n.figure?`<img src="${thumb(n.figure.thumbnail)}" alt="${esc(n.panel)}">`:''}${verifyBadges(n.id)}<ul>${rel(outs[n.id],'out')}${rel(ins[n.id],'in')}</ul>`}
+function closeDrawer(d){const r=d.previousElementSibling;r?.classList.remove('open');d.remove()}
 function openDrawer(id){const t=document.querySelector(`#tree .t[data-open="${id}"],#tree [data-open="${id}"]`);if(!t)return false;const row=t.closest('.row')||t.closest('.qb');
  let d=row.nextElementSibling;if(d&&d.classList.contains('drawer')&&d.dataset.for===id)return d;
- let p=row.parentElement;while(p&&p.id!=='tree'){if(p.tagName==='DETAILS')p.open=true;p=p.parentElement}
- d=document.createElement('div');d.className='drawer';d.dataset.for=id;d.style.marginLeft=getComputedStyle(row).marginLeft;d.innerHTML=detail(N[id])+children(N[id]);row.after(d);return d}
+ for(const o of row.parentElement.querySelectorAll(':scope > .drawer'))closeDrawer(o);   // one open node per level
+ d=document.createElement('div');d.className='drawer';d.dataset.for=id;d.style.marginLeft=getComputedStyle(row).marginLeft;d.innerHTML=detail(N[id])+children(N[id]);row.after(d);row.classList.add('open');return d}
+function current(id){document.querySelectorAll('.row.cur').forEach(r=>r.classList.remove('cur'));document.querySelector(`#tree .t[data-open="${id}"]`)?.closest('.row')?.classList.add('cur');
+ document.querySelectorAll('mark.anc.on').forEach(m=>m.classList.remove('on'));document.querySelectorAll(`mark[data-id="${id}"]`).forEach(m=>m.classList.add('on'))}
+function paneScroll(pane,el,frac){if(!el)return;const pr=pane.getBoundingClientRect(),er=el.getBoundingClientRect();pane.scrollTop=pane.scrollTop+er.top-pr.top-pr.height*frac}
+function scrollArticle(id){const m=document.querySelector(`mark[data-id="${id}"]`);if(!m)return;narrow()?m.scrollIntoView({block:'center',behavior:'smooth'}):paneScroll(document.getElementById('article'),m,.4)}
 function openPath(id){if(document.querySelector(`#tree [data-open="${id}"]`))return openDrawer(id);const n=N[id];
  const p=n.type==='Claim'?(ins[id]||[]).find(e=>e.relation==='supports'&&N[e.subject].type==='Claim')?.subject:n.type==='Protocol'?(ins[id]||[]).find(e=>e.relation==='follows')?.subject:n.type==='Request'?(outs[id]||[]).find(e=>e.relation==='request_target')?.object:(outs[id]||[]).find(e=>['supports','opposes'].includes(e.relation)&&N[e.object]?.type==='Claim')?.object;
  if(!p)return null;openPath(p);return openDrawer(id)}
-function show(id){const n=N[id];if(!n)return;document.querySelector('[data-tab="tree"]').click();const d=openPath(id);(d||document.getElementById('tree')).scrollIntoView({block:'start',behavior:'smooth'})}
-function showInArticle(id){document.querySelector('[data-tab="article"]').click();document.querySelectorAll('mark.anc.on').forEach(m=>m.classList.remove('on'));document.querySelectorAll(`mark[data-id="${id}"]`).forEach(m=>m.classList.add('on'));document.querySelector(`mark[data-id="${id}"]`)?.scrollIntoView({block:'center',behavior:'smooth'})}
+function show(id,fromArticle=false){const n=N[id];if(!n)return;tab('tree');const d=openPath(id);current(id);const row=d?.previousElementSibling;if(row)narrow()?row.scrollIntoView({block:'start',behavior:'smooth'}):paneScroll(document.querySelector('.pane.right'),row,.08);if(!fromArticle&&!narrow())scrollArticle(id)}
+function showInArticle(id){if(narrow())tab('article');current(id);scrollArticle(id)}
 document.body.addEventListener('click',e=>{const el=e.target.closest('[data-id],[data-go],[data-open],[data-article]');if(!el||e.target.closest('a[href^="http"]'))return;e.preventDefault();
  if(el.dataset.article){showInArticle(el.dataset.article);return}
- if(el.dataset.open){const id=el.dataset.open,row=el.closest('.row')||el.closest('.qb');const d=row.nextElementSibling;if(d&&d.classList.contains('drawer')&&d.dataset.for===id){d.remove();return}openDrawer(id);return}
- const id=el.dataset.id||el.dataset.go;if(N[id])show(id)});
+ if(el.dataset.open){const id=el.dataset.open,row=el.closest('.row')||el.closest('.qb');const d=row.nextElementSibling;if(d&&d.classList.contains('drawer')&&d.dataset.for===id){closeDrawer(d);return}openDrawer(id);current(id);if(!narrow())scrollArticle(id);return}
+ const id=el.dataset.id||el.dataset.go;if(N[id])show(id,!!el.dataset.id)});
 // ── tree: one row per node — chip, then summary (claims) or text (evidence) ─────────────
 const line=n=>n.type==='SourceDocument'?n.text:(n.description||n.text);
 const isInterp=n=>n.type==='Claim'&&!n.subtype&&(ins[n.id]||[]).some(e=>e.relation==='supports'&&N[e.subject].type==='Claim'&&!N[e.subject].subtype);
