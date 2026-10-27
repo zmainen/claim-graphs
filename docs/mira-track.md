@@ -136,6 +136,13 @@ prototype has them; cited works are SourceDocuments with bibliography fields (`a
 nodes may carry extra `anchors`; the extractor-shaped `.graph.json` is what goes to eLife's
 prototype, the JSON-LD alongside it for Paul.
 
+The handoff itself is the page: `mira_viewer.py ... --embed-figures --deliver --out <paper>-hand.deliver.html`
+builds the one eLife receives. It drops the comparison and the verification table, and its Data
+item opens About this graph (what is MIRA's and what is ours, the audit stamp, how to read the
+page, provenance), the cleaned working-graph JSON (written beside it as `.deliver.graph.json`,
+with a `fields` block naming the extra fields) and the MIRA JSON-LD. One self-contained file,
+no server, no outside requests.
+
 **6. The record.** `python3 scripts/mira_report.py <paper>` writes
 `runs/<paper>/mira-report/site/` (not committed); publish `index.html` as the artifact page and
 the other files as its files. Every count and quote on the pages comes from the run files.

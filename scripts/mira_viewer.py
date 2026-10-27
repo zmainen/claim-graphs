@@ -7,7 +7,10 @@ alternatives with what opposes them, checks marked); and the verification marks.
 The JSON, the article text and the verification verdicts are embedded, so the file is the
 deliverable's review surface and can be opened anywhere. Nothing is typed into it by hand.
 
-Usage: mira_viewer.py <graph.json> <anchor-text.txt> [--out viewer.html] [--embed-figures]
+Usage: mira_viewer.py <graph.json> <anchor-text.txt> [--out viewer.html] [--embed-figures] [--deliver]
+--deliver builds the page handed to eLife: the Data item in the margin opens the cleaned working-graph
+JSON (no builder bookkeeping; a `fields` note explains the extra fields), the MIRA JSON-LD, and an About
+page with the audit stamp; no comparison, no verification table. The cleaned JSON is also written beside it.
                       [--compare <other.graph.json> <alignment.json> [--compare-label "eLife's graph"]]
 With --compare the viewer gets a "Compared with…" tab: provenance badges on every node of the tree
 (its counterpart in the other graph, or "new") and a three-column ledger per node type. The alignment
@@ -47,7 +50,23 @@ def main():
         i = a.index("--compare")
         cmp = {"graph": json.load(open(a[i + 1], encoding="utf-8")), "align": json.load(open(a[i + 2], encoding="utf-8")),
                "label": a[a.index("--compare-label") + 1] if "--compare-label" in a else "eLife's graph"}
-    payload = json.dumps({"graph": g, "text": text, "verification": v, "compare": cmp, "thumbs": thumbs}, ensure_ascii=False).replace("</", "<\\/")
+    deliver = "--deliver" in a
+    jsonld = None
+    if deliver:
+        cmp = None
+        clean = {k: val for k, val in g.items() if k not in ("coverage", "models", "edited")}
+        clean["nodes"] = [{k: val for k, val in n.items() if k != "key"} for n in g["nodes"]]
+        clean["fields"] = {"description": "plain summary, one or two sentences", "anchor": "verbatim passage of the Reviewed Preprint text the node docks to",
+                           "anchors": "further verbatim passages", "subtype": "declared subclass: Hypothesis / Alternative (Claim), Check / Cited (Evidence)",
+                           "panel": "figure panel, table or section the evidence comes from", "study": "the Study node that grounds the evidence",
+                           "figure": "IIIF image, thumbnail and page link for the panel", "notes": "editorial remarks kept out of the summary",
+                           "sourceDocument": "DOI of the paper, or the id of the cited SourceDocument for Cited evidence"}
+        g = clean
+        ld = gpath.replace(".graph.json", ".mira.jsonld")
+        jsonld = open(ld, encoding="utf-8").read() if os.path.exists(ld) else None
+        json.dump(clean, open(out.replace(".html", ".graph.json"), "w"), indent=1, ensure_ascii=False)
+    payload = json.dumps({"graph": g, "text": text, "verification": {} if deliver else v, "compare": cmp, "thumbs": thumbs, "deliver": deliver,
+                          "jsonld": jsonld, "stamp": v.get("summary", {})}, ensure_ascii=False).replace("</", "<\\/")
     html = TEMPLATE.replace("__TITLE__", title.replace("<", "&lt;")).replace("__PAYLOAD__", payload)
     open(out, "w", encoding="utf-8").write(html)
     print(f"wrote {out} ({len(html) // 1024} KB)")
@@ -81,7 +100,7 @@ header.top .meta{font-size:.86rem;color:var(--ink-2);display:flex;flex-wrap:wrap
 nav.sections{padding-top:1.4rem;font-size:.86rem;position:sticky;top:0;align-self:start}
 nav.sections a{display:block;color:var(--ink-2);padding:.28rem 0 .28rem .8rem;border-left:2px solid var(--rule);line-height:1.3}nav.sections a.cur{color:var(--ink);border-left-color:var(--ink);font-weight:500}nav.sections a:hover{text-decoration:none;color:var(--ink)}
 nav.sections .key{margin-top:1.6rem;padding-left:.8rem;display:grid;gap:.25rem;font-size:.78rem;color:var(--ink-2)}nav.sections .key div{display:flex;gap:.45rem;align-items:center}
-nav.sections .tools{margin-top:1.4rem;padding-left:.8rem;display:grid;gap:.3rem}nav.sections details.internal{margin-top:.6rem}nav.sections details.internal summary{cursor:pointer;color:var(--ink-3);font-size:.74rem;letter-spacing:.06em;text-transform:uppercase}nav.sections details.internal button{display:block;width:100%;margin-top:.3rem}nav.sections .tools button{text-align:left;background:none;border:1px solid var(--rule);border-radius:6px;padding:.3rem .6rem;color:var(--ink-2);font-size:.8rem}nav.sections .tools button[aria-selected="true"]{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+nav.sections .tools{margin-top:1.4rem;padding-left:.8rem;display:grid;gap:.3rem}nav.sections details.internal{margin-top:.6rem}nav.sections details.internal summary{cursor:pointer;color:var(--ink-3);font-size:.74rem;letter-spacing:.06em;text-transform:uppercase}nav.sections details.internal button{display:block;width:100%;margin-top:.3rem}nav.sections .tools button{text-align:left;background:none;border:1px solid var(--rule);border-radius:6px;padding:.3rem .6rem;color:var(--ink-2);font-size:.8rem}nav.sections .tools button[aria-selected="true"]{background:var(--ink);color:var(--paper);border-color:var(--ink)}nav.sections .tools button.quiet{border-color:transparent;color:var(--ink-3)}nav.sections .tools button.quiet:hover{border-color:var(--rule)}
 #arttab{display:none}
 @media (max-width:1100px){.split{grid-template-columns:120px minmax(0,1fr) minmax(0,1fr);gap:1.2rem}}
 @media (max-width:900px){body{height:auto;overflow:auto;display:block}.split{display:block}nav.sections{display:none}.pane{overflow:visible}#article:not(.on){display:none}.tabs{display:flex;flex-wrap:wrap;gap:.3rem;padding:.6rem 0}.tabs button{background:none;border:1px solid var(--rule);border-radius:6px;padding:.25rem .6rem;color:var(--ink-2)}.tabs button[aria-selected="true"]{background:var(--ink);color:var(--paper)}#arttab{display:inline-block}}
@@ -121,14 +140,15 @@ mark.anc.on{background:color-mix(in srgb,var(--cur) 12%,transparent);border-bott
 /* checks, compare, json */
 #checks{max-width:90ch}#checks table{width:100%;border-collapse:collapse;font-size:.88rem}#checks td,#checks th{text-align:left;vertical-align:top;padding:.3rem .5rem;border-top:1px solid var(--rule)}
 #compare.on{display:block}#compare table{width:100%;border-collapse:collapse;font-size:.86rem;margin:.4rem 0 1.4rem}#compare th,#compare td{vertical-align:top;text-align:left;padding:.35rem .5rem;border-top:1px solid var(--rule);width:33%}#compare th{font-weight:500;color:var(--ink-2)}#compare td>div{margin:.3rem 0}#compare .s{color:var(--ink-3);font-size:.78rem}#compare h2{font:500 1rem var(--sans);margin:1.4rem 0 .2rem}
-#json pre{font:.76rem/1.5 var(--mono);white-space:pre-wrap;word-break:break-word}
-@media print{body{height:auto;overflow:visible;display:block}.split{display:block}.pane{overflow:visible}nav.sections{display:none}main{display:block !important}#json,#compare,#checks{display:none !important}}
+#json pre,#jsonld pre{font:.76rem/1.5 var(--mono);white-space:pre-wrap;word-break:break-word}
+.about{max-width:66ch;font-size:.95rem;line-height:1.65}.about h2{font:600 1.25rem var(--sans);margin:0 0 .8rem}.about h3{font:600 1rem var(--sans);margin:1.6rem 0 .4rem}.about code{font:.82rem var(--mono);background:var(--paper-2);padding:0 .25rem;border-radius:3px}.about .foot{color:var(--ink-3);font-size:.82rem;margin-top:2rem}
+@media print{body{height:auto;overflow:visible;display:block}.split{display:block}.pane{overflow:visible}nav.sections{display:none}main{display:block !important}#json,#jsonld,#compare,#checks{display:none !important}}
 </style></head><body>
 <header class="top"><h1>__TITLE__</h1><div class="meta" id="meta"></div>
 <div class="legend"><span><span class="id Q">Q</span> question</span><span><span class="id H">H</span> hypothesis</span><span><span class="id F">F</span> finding</span><span><span class="id A">A</span> alternative</span><span><span class="id E">E</span> evidence</span><span><span class="id K">K</span> check</span><span><span class="id E cited">E</span> cited finding</span><span><span class="id C">C</span> cited work</span><span><span class="id R">R</span> request</span></div>
 <div class="tabs" role="tablist"><button role="tab" data-tab="article" id="arttab">Article</button><button role="tab" data-tab="tree" aria-selected="true">Claims</button><button role="tab" data-tab="checks">Verification</button><button role="tab" data-tab="compare" id="cmptab" hidden>Compared</button><button role="tab" data-tab="json">JSON</button><button id="collapse" title="close every open node">collapse</button></div></header>
 <div class="split"><nav class="sections" id="sections"></nav><section id="article" class="pane"><nav class="toc">section <select id="toc"></select></nav><div class="text" id="text"></div></section>
-<section class="pane right"><main id="tree" class="on"></main><main id="checks"></main><main id="compare"></main><main id="json"><pre id="jsonpre"></pre></main></section></div>
+<section class="pane right"><main id="tree" class="on"></main><main id="checks"></main><main id="compare"></main><main id="json"><pre id="jsonpre"></pre></main><main id="jsonld"><pre id="jsonldpre"></pre></main><main id="about"></main></section></div>
 <script id="data" type="application/json">__PAYLOAD__</script>
 <script>
 const D=JSON.parse(document.getElementById('data').textContent);const G=D.graph,T=D.text,V=D.verification,C=D.compare;
@@ -160,8 +180,8 @@ const P=G.paper||{};document.getElementById('meta').innerHTML=`${P.authors?`<spa
 const toc=document.getElementById('toc');const MAJOR=/^(abstract|introduction|results|discussion|materials and methods|methods|references|elife assessment|elife digest)$/i;const heads=[...document.querySelectorAll('#article .text h2')];
 heads.forEach((h,i)=>{h.id='sec'+i;toc.add(new Option(h.textContent,h.id))});toc.onchange=()=>{const h=document.getElementById(toc.value);narrow()?h.scrollIntoView({block:'start'}):paneScroll(document.getElementById('article'),h,.04)};
 const majors=heads.filter(h=>MAJOR.test(h.textContent.trim()));const sec=document.getElementById('sections');
-const SHORT={checks:'Verification',compare:'Compared with prototype',json:'JSON'};
-sec.innerHTML=majors.map(h=>`<a href="#${h.id}" data-sec="${h.id}">${esc(h.textContent)}</a>`).join('')+`<div class="tools"><button data-tool="tree" aria-selected="true">Claims</button><button id="collapse2">collapse all</button><details class="internal"><summary>internal</summary>${['checks','compare','json'].map(t=>`<button data-tool="${t}" ${t==='compare'&&!C?'hidden':''} aria-selected="false">${SHORT[t]}</button>`).join('')}</details></div>
+const SHORT={checks:'Verification',compare:'Compared with prototype',json:'JSON',jsonld:'JSON-LD (MIRA)',about:'About this graph'};const VIEWS=D.deliver?['about','json','jsonld']:['checks','compare','json','jsonld','about'];
+sec.innerHTML=majors.map(h=>`<a href="#${h.id}" data-sec="${h.id}">${esc(h.textContent)}</a>`).join('')+`<div class="tools"><button data-tool="tree" aria-selected="true">Claims</button><button id="collapse2" class="quiet">collapse all</button><details class="internal" ${D.deliver?'open':''}><summary>${D.deliver?'data':'internal'}</summary>${VIEWS.map(t=>`<button data-tool="${t}" ${(t==='compare'&&!C)||(t==='jsonld'&&!D.jsonld)?'hidden':''} aria-selected="false">${SHORT[t]}</button>`).join('')}</details></div>
 <div class="key"><div><span class="id Q">Q</span>question</div><div><span class="id H">H</span>hypothesis</div><div><span class="id F">F</span>finding</div><div><span class="id A">A</span>alternative</div><div><span class="id E">E</span>evidence</div><div><span class="id K">K</span>check</div><div><span class="id E cited">E</span>cited finding</div><div><span class="id C">C</span>cited work</div><div><span class="id R">R</span>request</div></div>`;
 sec.querySelectorAll('a[data-sec]').forEach(a=>a.onclick=e=>{e.preventDefault();const h=document.getElementById(a.dataset.sec);narrow()?h.scrollIntoView({block:'start'}):paneScroll(document.getElementById('article'),h,.02)});
 sec.querySelectorAll('[data-tool]').forEach(b=>b.onclick=()=>{tab(b.dataset.tool);sec.querySelectorAll('[data-tool]').forEach(x=>x.setAttribute('aria-selected',x===b))});
@@ -221,6 +241,19 @@ document.getElementById('checks').innerHTML=`<p><b>${S.passed??'?'} of ${S.nodes
 <p class="s">Checks: <b>shape</b> (id, type, text) · <b>summary</b> (questions, claims and requests: one or two plain sentences) · <b>anchor</b> (verbatim in the text) · <b>evidence</b> (grounded in a study or a cited source, names its panel) · <b>figure</b> (a figure panel links to its figure) · <b>structure</b> (every claim reaches a question; every piece of evidence argues something).</p>
 ${rows?`<table><thead><tr><th>node</th><th>text</th><th>failing</th></tr></thead><tbody>${rows}</tbody></table>`:'<p>No node fails a check.</p>'}`;
 document.getElementById('jsonpre').textContent=JSON.stringify(G,null,1);
+if(D.jsonld)document.getElementById('jsonldpre').textContent=D.jsonld;
+const ST=D.stamp||{};const cnt=t=>G.nodes.filter(n=>n.type===t).length,sub=t=>G.nodes.filter(n=>n.subtype===t).length;
+document.getElementById('about').innerHTML=`<div class="about"><h2>About this graph</h2>
+<p>A MIRA graph of <i>${esc(G.paper?.title||'')}</i> (eLife ${esc(G.paper?.doi||'')}), built by hand from the text of the Reviewed Preprint as eLife Pathways serves it, so that every node docks to a verbatim passage of that text.</p>
+<p>It holds ${cnt('Question')} questions, ${cnt('Claim')} claims (${sub('Hypothesis')} hypotheses the authors test, ${cnt('Claim')-sub('Hypothesis')-sub('Alternative')} findings, ${sub('Alternative')} alternatives the paper raises and argues against), ${cnt('Evidence')} pieces of evidence (${sub('Check')} of them checks of the method, ${sub('Cited')} taken from cited work), ${cnt('Study')} studies, ${cnt('Protocol')} protocols, ${cnt('Request')} requests for future work and ${cnt('SourceDocument')} source documents.</p>
+<h3>What is MIRA's and what is ours</h3>
+<p>Node types and relations are MIRA's. Four subclasses are declared with MIRA's own <code>NodeSchema</code> mechanism, each <code>subClassOf</code> a MIRA type, so a MIRA tool that does not know them still reads valid Claims and Evidence: <b>Hypothesis</b> and <b>Alternative</b> under Claim, <b>Check</b> and <b>Cited</b> under Evidence. They exist so a reader can see what the authors set out to test, what rivals they ruled out and with which result, which measurements defend the method rather than argue for a hypothesis, and which findings are borrowed from other papers.</p>
+<p>Beyond the extractor's fields each node carries a plain <code>description</code> (the summary shown in the tree), an <code>anchor</code> (verbatim in the text), and where relevant <code>panel</code>, <code>study</code>, <code>figure</code> and <code>notes</code>; the <code>fields</code> block in the JSON lists them.</p>
+<h3>How it was checked</h3>
+<p>${ST.passed??G.nodes.length} of ${ST.nodes??G.nodes.length} nodes pass every check: ids and types well formed; every question, claim and request summarised in one or two plain sentences; every anchor character-for-character in ${(ST.text_chars||0).toLocaleString()} characters of the article text; every piece of evidence grounded in a study or a cited source and naming its panel; every edge one of MIRA's relations between legal endpoint types; every claim reaching a question and every piece of evidence arguing for or against something.</p>
+<h3>How to read the page</h3>
+<p>The article is on the left with each anchored passage underlined and tagged by its id. Click a passage, or a row on the right, to open the node: its statement, the quote, its figure and what it supports or opposes. Evidence sits inside the claim it bears on; cited findings are marked with a dashed chip.</p>
+<p class="foot">Zach Mainen with Claude · Champalimaud Research · ${new Date().toISOString().slice(0,10)}</p></div>`;
 // ── compare ─────────────────────────────────────────────────────────────────────────────
 if(C){document.getElementById('cmptab').hidden=false;document.getElementById('cmptab').textContent=`Compared with the ${C.label}`;
  const T2O=C.align.theirs_to_ours;const tcell=n=>`<div><code>${n.id}</code> ${esc(n.text)}</div>`;const ocell=n=>`<div>${chip(n)} ${esc(line(n))}</div>`;
