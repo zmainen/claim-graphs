@@ -128,14 +128,16 @@ const html=[];let para=[];const flush=()=>{if(!para.length)return;const h=para.j
 for(const s of segs){const parts=s.t.split('\n\n');parts.forEach((p,i)=>{if(i>0){flush()}const t=p.replace(/\n/g,' ');if(!t)return;para.push(s.n?`<mark class="anc" data-id="${s.n.id}">${esc(t)}</mark><span class="id ${pre(s.n)}" data-id="${s.n.id}">${s.n.id}</span>`:esc(t))})}
 flush();document.getElementById('text').innerHTML=html.join('');
 function verifyBadges(id){const bad=Object.entries(V.nodes?.[id]||{}).filter(([,r])=>!r.ok);return bad.length?`<div class="verify">${bad.map(([c,r])=>`<span class="bad" title="${esc(r.note)}">${c} ✗ ${esc(r.note)}</span>`).join('')}</div>`:''}
-function detail(n){const rel=(list,dir)=>(list||[]).filter(e=>['supports','opposes','addresses','observationStatement','request_target','grounds','follows'].includes(e.relation)).filter(e=>!(dir==='in'&&n.type==='Claim'&&['supports','opposes'].includes(e.relation))).map(e=>{const a=N[e.subject],b=N[e.object],o=dir==='out'?b:a;return `<li>${chip(a,true)} <span class="rel">${e.relation}</span> ${chip(b,true)} ${esc(o.description||o.text)}</li>`}).join('');
+function detail(n){const rel=(list,dir)=>(list||[]).filter(e=>['supports','opposes','addresses','observationStatement','request_target','grounds','follows'].includes(e.relation)).filter(e=>!(dir==='in'&&n.type==='Claim'&&['supports','opposes','request_target'].includes(e.relation))&&!(dir==='out'&&n.type==='Study'&&e.relation==='follows')&&!(dir==='out'&&n.type==='Request'&&e.relation==='request_target')&&!(n.type==='SourceDocument')&&!(dir==='out'&&n.type==='Claim'&&e.relation==='supports'&&N[e.object].type==='Claim'&&!N[e.object].subtype)).map(e=>{const a=N[e.subject],b=N[e.object],o=dir==='out'?b:a;return `<li>${chip(a,true)} <span class="rel">${e.relation}</span> ${chip(b,true)} ${esc(o.description||o.text)}</li>`}).join('');
  return `<div class="m">${chip(n,true)}${n.study?` · ${esc(studyOf(n))}`:''}${n.panel?` · ${esc(n.panel)}`:''}${prov(n)}</div><h3>${esc(n.text)}</h3>${n.notes?`<p class="q">${esc(n.notes)}</p>`:''}
  ${n.text.includes(n.anchor)?'':`<p class="q">“${esc(n.anchor)}”</p>`}<p class="m"><a href="#" data-article="${n.id}">article</a>${n.figure?` · <a href="${esc(n.figure.page)}" target="_blank">${esc(n.panel)} ↗</a>`:''}</p>${n.figure?`<img src="${thumb(n.figure.thumbnail)}" alt="${esc(n.panel)}">`:''}${verifyBadges(n.id)}<ul>${rel(outs[n.id],'out')}${rel(ins[n.id],'in')}</ul>`}
 function openDrawer(id){const t=document.querySelector(`#tree .t[data-open="${id}"],#tree [data-open="${id}"]`);if(!t)return false;const row=t.closest('.row')||t.closest('.qb');
  let d=row.nextElementSibling;if(d&&d.classList.contains('drawer')&&d.dataset.for===id)return d;
  let p=row.parentElement;while(p&&p.id!=='tree'){if(p.tagName==='DETAILS')p.open=true;p=p.parentElement}
  d=document.createElement('div');d.className='drawer';d.dataset.for=id;d.style.marginLeft=getComputedStyle(row).marginLeft;d.innerHTML=detail(N[id])+children(N[id]);row.after(d);return d}
-function openPath(id){if(document.querySelector(`#tree [data-open="${id}"]`))return openDrawer(id);const p=(outs[id]||[]).find(e=>['supports','opposes'].includes(e.relation)&&N[e.object]?.type==='Claim');if(!p)return null;openPath(p.object);return openDrawer(id)}
+function openPath(id){if(document.querySelector(`#tree [data-open="${id}"]`))return openDrawer(id);const n=N[id];
+ const p=n.type==='Claim'?(ins[id]||[]).find(e=>e.relation==='supports'&&N[e.subject].type==='Claim')?.subject:n.type==='Protocol'?(ins[id]||[]).find(e=>e.relation==='follows')?.subject:n.type==='Request'?(outs[id]||[]).find(e=>e.relation==='request_target')?.object:(outs[id]||[]).find(e=>['supports','opposes'].includes(e.relation)&&N[e.object]?.type==='Claim')?.object;
+ if(!p)return null;openPath(p);return openDrawer(id)}
 function show(id){const n=N[id];if(!n)return;document.querySelector('[data-tab="tree"]').click();const d=openPath(id);(d||document.getElementById('tree')).scrollIntoView({block:'start',behavior:'smooth'})}
 function showInArticle(id){document.querySelector('[data-tab="article"]').click();document.querySelectorAll('mark.anc.on').forEach(m=>m.classList.remove('on'));document.querySelectorAll(`mark[data-id="${id}"]`).forEach(m=>m.classList.add('on'));document.querySelector(`mark[data-id="${id}"]`)?.scrollIntoView({block:'center',behavior:'smooth'})}
 document.body.addEventListener('click',e=>{const el=e.target.closest('[data-id],[data-go],[data-open],[data-article]');if(!el||e.target.closest('a[href^="http"]'))return;e.preventDefault();
@@ -144,21 +146,26 @@ document.body.addEventListener('click',e=>{const el=e.target.closest('[data-id],
  const id=el.dataset.id||el.dataset.go;if(N[id])show(id)});
 // ── tree: one row per node — chip, then summary (claims) or text (evidence) ─────────────
 const line=n=>n.description||n.text;
+const isInterp=n=>n.type==='Claim'&&!n.subtype&&(ins[n.id]||[]).some(e=>e.relation==='supports'&&N[e.subject].type==='Claim'&&!N[e.subject].subtype);
 const row=(n,lvl,extra='',tail='')=>`<div class="row lvl${lvl}">${chip(n)}<div class="t" data-open="${n.id}">${extra}${esc(line(n))}${prov(n)}${tail}</div></div>`;
 const evidenceFor=c=>(ins[c.id]||[]).filter(e=>N[e.subject]?.type==='Evidence').map(e=>({e:N[e.subject],rel:e.relation}));
-const children=c=>{if(c.type!=='Claim')return'';const ev=evidenceFor(c);const sup=ev.filter(x=>x.rel==='supports'&&x.e.subtype!=='Check'),opp=ev.filter(x=>x.rel==='opposes'),chk=ev.filter(x=>x.e.subtype==='Check');
- const grp=(label,xs)=>xs.length?`<div class="grp">${label}</div>${xs.map(({e})=>row(e,0)).join('')}`:'';
- return c.subtype==='Alternative'?grp('argued against by',opp)+grp('in its favour',sup):grp('supported by',sup)+grp('argued against by',opp)+grp('checks',chk)};
+const children=c=>{const grp=(label,xs)=>xs.length?`<div class="grp">${label}</div>${xs.map(e=>row(e,0)).join('')}`:'';
+ if(c.type==='Study'){const ps=(outs[c.id]||[]).filter(e=>e.relation==='follows').map(e=>N[e.object]);const ne=(outs[c.id]||[]).filter(e=>e.relation==='grounds').length;return grp('protocols',ps)+`<p class="m">grounds ${ne} pieces of evidence, listed under the claims they bear on</p>`}
+ if(c.type==='SourceDocument'){const ev=G.nodes.filter(n=>n.type==='Evidence'&&n.sourceDocument===c.id);const st=(outs[c.id]||[]).filter(e=>e.relation==='describesActivity').map(e=>N[e.object]);return grp('describes',st)+grp('cited finding',ev)}
+ if(c.type==='Request')return grp('about',(outs[c.id]||[]).filter(e=>e.relation==='request_target').map(e=>N[e.object]));
+ if(c.type!=='Claim')return'';const interp=c.subtype?[]:(outs[c.id]||[]).filter(e=>e.relation==='supports'&&N[e.object].type==='Claim'&&!N[e.object].subtype).map(e=>N[e.object]);const reqs=(ins[c.id]||[]).filter(e=>e.relation==='request_target').map(e=>N[e.subject]);const ev=evidenceFor(c);const sup=ev.filter(x=>x.rel==='supports'&&x.e.subtype!=='Check'),opp=ev.filter(x=>x.rel==='opposes'),chk=ev.filter(x=>x.e.subtype==='Check');
+ const g2=(label,xs)=>grp(label,xs.map(x=>x.e));
+ return (c.subtype==='Alternative'?g2('argued against by',opp)+g2('in its favour',sup):g2('supported by',sup)+g2('argued against by',opp)+g2('checks',chk))+grp('read as',interp)+grp('future work',reqs)};
 let tree='';for(const q of G.nodes.filter(n=>n.type==='Question')){
  const addr=(ins[q.id]||[]).filter(e=>e.relation==='addresses').map(e=>N[e.subject]);
  const hyps=addr.filter(n=>n.subtype==='Hypothesis'),alts=addr.filter(n=>n.subtype==='Alternative'),plain=addr.filter(n=>!n.subtype);
  tree+=`<section class="qb"><h2>${chip(q)}<span data-open="${q.id}" style="cursor:pointer">${esc(q.text)}</span></h2><p class="s">${esc(q.description||'')}</p>`;
- for(const h of hyps){tree+=row(h,1,'<span class="w">hypothesis</span>');for(const f of (ins[h.id]||[]).filter(e=>e.relation==='supports'&&N[e.subject].type==='Claim').map(e=>N[e.subject]))tree+=row(f,2)}
- if(plain.length){tree+=`<div class="row lvl1"><span></span><div class="t"><span class="w">other findings</span></div></div>`;for(const c of plain){tree+=row(c,2);for(const d of (ins[c.id]||[]).filter(e=>e.relation==='supports'&&N[e.subject].type==='Claim').map(e=>N[e.subject]))tree+=row(d,3,'<span class="w">from</span>')}}
+ for(const h of hyps){tree+=row(h,1,'<span class="w">hypothesis</span>');for(const f of (ins[h.id]||[]).filter(e=>e.relation==='supports'&&N[e.subject].type==='Claim').map(e=>N[e.subject]).filter(f=>!isInterp(f)))tree+=row(f,2)}
+ if(plain.length){tree+=`<div class="row lvl1"><span></span><div class="t"><span class="w">other findings</span></div></div>`;for(const c of plain)tree+=row(c,2)}
  for(const a of alts){const op=evidenceFor(a).filter(x=>x.rel==='opposes').length;tree+=row(a,1,'<span class="w">alternative</span>',op?'':' <span class="prov">nothing in the paper argues against it</span>')}
  tree+='</section>'}
-const reqs=G.nodes.filter(n=>n.type==='Request');if(reqs.length)tree+=`<section class="qb"><h2>What the authors call for next</h2>${reqs.map(r=>row(r,1,'',)+`<div class="note">about ${(outs[r.id]||[]).map(e=>chip(N[e.object])).join(' ')}</div>`).join('')}</section>`;
-const rest=G.nodes.filter(n=>['Study','Protocol','SourceDocument'].includes(n.type));tree+=`<section class="qb"><h2>Studies, methods, sources</h2>${rest.map(n=>row(n,1,`<span class="w">${WORD[pre(n)]}</span>`)).join('')}</section>`;
+const reqs=G.nodes.filter(n=>n.type==='Request');if(reqs.length)tree+=`<section class="qb"><h2>What the authors call for next</h2>${reqs.map(r=>row(r,1)).join('')}</section>`;
+tree+=`<section class="qb"><h2>Studies, methods, sources</h2>`;for(const d of G.nodes.filter(n=>n.type==='SourceDocument')){const st=(outs[d.id]||[]).filter(e=>e.relation==='describesActivity').map(e=>N[e.object]);tree+=row(d,1,`<span class="w">${st.length?'this paper':'cited work'}</span>`);for(const x of st)tree+=row(x,2,'<span class="w">study</span>')}tree+='</section>';
 document.getElementById('tree').innerHTML=tree;
 // ── checks ──────────────────────────────────────────────────────────────────────────────
 const S=V.summary||{};const rows=Object.entries(V.nodes||{}).map(([id,v])=>{const bad=Object.entries(v).filter(([,r])=>!r.ok);return bad.length?`<tr><td>${chip(N[id])}</td><td>${esc(N[id]?.text||'')}</td><td>${bad.map(([c,r])=>`<span class="verify"><span class="bad">${c}: ${esc(r.note)}</span></span>`).join(' ')}</td></tr>`:''}).join('');
