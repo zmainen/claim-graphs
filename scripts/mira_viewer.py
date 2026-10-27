@@ -75,8 +75,8 @@ header.top h1{font:600 1.05rem var(--sans);margin:0}
 main{padding-block:1rem 4rem}main:not(.on){display:none !important}main.on{display:block}
 /* id chip: the one thing every node shows everywhere */
 .id{display:inline-block;font:600 .72rem var(--mono);padding:.02rem .3rem;border-radius:3px;color:#fff;background:var(--ink-3);min-width:2.2em;text-align:center;cursor:pointer;vertical-align:1px}
-.id.Q{background:var(--Q)}.id.H{background:var(--H)}.id.F{background:var(--F)}.id.A{background:var(--A)}.id.E{background:var(--E)}.id.K{background:var(--K)}.id.R{background:var(--R)}
-.id.ref{background:none !important;border:1px solid currentColor;font-weight:400;opacity:.85}.id.ref.Q{color:var(--Q)}.id.ref.H{color:var(--H)}.id.ref.F{color:var(--F)}.id.ref.A{color:var(--A)}.id.ref.E{color:var(--E)}.id.ref.K{color:var(--K)}.id.ref.R{color:var(--R)}.id.ref.S,.id.ref.P,.id.ref.D{color:var(--ink-3)}
+.id.Q{background:var(--Q)}.id.H{background:var(--H)}.id.F{background:var(--F)}.id.A{background:var(--A)}.id.E{background:var(--E)}.id.K{background:var(--K)}.id.R{background:var(--R)}.id.C{background:none;color:var(--ink-3);border:1px dashed var(--ink-3)}
+.id.ref{background:none !important;border:1px solid currentColor;font-weight:400;opacity:.85}.id.ref.Q{color:var(--Q)}.id.ref.H{color:var(--H)}.id.ref.F{color:var(--F)}.id.ref.A{color:var(--A)}.id.ref.E{color:var(--E)}.id.ref.K{color:var(--K)}.id.ref.C{color:var(--ink-3);border-style:dashed}.id.ref.R{color:var(--R)}.id.ref.S,.id.ref.P,.id.ref.D{color:var(--ink-3)}
 .prov{font-size:.7rem;color:var(--ink-3);margin-left:.4rem;white-space:nowrap}.prov.new{color:var(--F)}
 /* article */
 #article.on{display:block}#article .text{margin-inline:auto}
@@ -101,7 +101,7 @@ details.ev{margin-left:3.2rem}details.ev>summary{cursor:pointer;font-size:.82rem
 #json pre{font:.78rem var(--mono);white-space:pre-wrap;word-break:break-word}
 </style></head><body>
 <header class="top"><h1>__TITLE__</h1>
-<div class="legend"><span><span class="id Q">Q</span> question</span><span><span class="id H">H</span> hypothesis</span><span><span class="id F">F</span> finding</span><span><span class="id A">A</span> alternative</span><span><span class="id E">E</span> evidence</span><span><span class="id K">K</span> check</span><span><span class="id R">R</span> request</span></div>
+<div class="legend"><span><span class="id Q">Q</span> question</span><span><span class="id H">H</span> hypothesis</span><span><span class="id F">F</span> finding</span><span><span class="id A">A</span> alternative</span><span><span class="id E">E</span> evidence</span><span><span class="id K">K</span> check</span><span><span class="id C">C</span> cited work</span><span><span class="id R">R</span> request</span></div>
 <div class="tabs" role="tablist"><button role="tab" data-tab="article" aria-selected="true">Article</button><button role="tab" data-tab="tree">Claims tree</button><button role="tab" data-tab="checks">Verification</button><button role="tab" data-tab="compare" id="cmptab" hidden>Compared</button><button role="tab" data-tab="json">JSON</button></div></header>
 <main id="article" class="on"><div class="text" id="text"></div></main>
 <main id="tree"></main><main id="checks"></main><main id="compare"></main><main id="json"><pre id="jsonpre"></pre></main>
@@ -109,8 +109,8 @@ details.ev{margin-left:3.2rem}details.ev>summary{cursor:pointer;font-size:.82rem
 <script>
 const D=JSON.parse(document.getElementById('data').textContent);const G=D.graph,T=D.text,V=D.verification,C=D.compare;
 const N=Object.fromEntries(G.nodes.map(n=>[n.id,n]));const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const WORD={Q:'question',H:'hypothesis',F:'finding',A:'alternative',E:'evidence',K:'check',R:'request',S:'study',P:'protocol',D:'source'};
-const pre=n=>n.subtype==='Hypothesis'?'H':n.subtype==='Alternative'?'A':n.subtype==='Check'?'K':n.type==='Claim'?'F':n.type==='Evidence'?'E':n.type==='Question'?'Q':n.type==='Request'?'R':n.type==='Study'?'S':n.type==='Protocol'?'P':'D';
+const WORD={Q:'question',H:'hypothesis',F:'finding',A:'alternative',E:'evidence',K:'check',C:'cited',R:'request',S:'study',P:'protocol',D:'source'};
+const pre=n=>n.subtype==='Hypothesis'?'H':n.subtype==='Alternative'?'A':n.subtype==='Check'?'K':n.subtype==='Cited'?'C':n.type==='Claim'?'F':n.type==='Evidence'?'E':n.type==='Question'?'Q':n.type==='Request'?'R':n.type==='Study'?'S':n.type==='Protocol'?'P':'D';
 const chip=(n,ref=false)=>`<span class="id ${pre(n)}${ref?' ref':''}" data-go="${n.id}">${n.id}</span>`;
 const outs={},ins={};for(const e of G.edges){(outs[e.subject]??=[]).push(e);(ins[e.object]??=[]).push(e)}
 const thumb=u=>D.thumbs?.[u]||u;const TN=C?Object.fromEntries(C.graph.nodes.map(n=>[n.id,n])):{};const O2T=C?C.align.ours_to_theirs:null;
@@ -153,9 +153,9 @@ const children=c=>{const grp=(label,xs)=>xs.length?`<div class="grp">${label}</d
  if(c.type==='Study'){const ps=(outs[c.id]||[]).filter(e=>e.relation==='follows').map(e=>N[e.object]);const ne=(outs[c.id]||[]).filter(e=>e.relation==='grounds').length;return grp('protocols',ps)+`<p class="m">grounds ${ne} pieces of evidence, listed under the claims they bear on</p>`}
  if(c.type==='SourceDocument'){const ev=G.nodes.filter(n=>n.type==='Evidence'&&n.sourceDocument===c.id);const st=(outs[c.id]||[]).filter(e=>e.relation==='describesActivity').map(e=>N[e.object]);return grp('describes',st)+grp('cited finding',ev)}
  if(c.type==='Request')return grp('about',(outs[c.id]||[]).filter(e=>e.relation==='request_target').map(e=>N[e.object]));
- if(c.type!=='Claim')return'';const interp=c.subtype?[]:(outs[c.id]||[]).filter(e=>e.relation==='supports'&&N[e.object].type==='Claim'&&!N[e.object].subtype).map(e=>N[e.object]);const reqs=(ins[c.id]||[]).filter(e=>e.relation==='request_target').map(e=>N[e.subject]);const ev=evidenceFor(c);const sup=ev.filter(x=>x.rel==='supports'&&x.e.subtype!=='Check'),opp=ev.filter(x=>x.rel==='opposes'),chk=ev.filter(x=>x.e.subtype==='Check');
+ if(c.type!=='Claim')return'';const interp=c.subtype?[]:(outs[c.id]||[]).filter(e=>e.relation==='supports'&&N[e.object].type==='Claim'&&!N[e.object].subtype).map(e=>N[e.object]);const ev=evidenceFor(c);const own=x=>!['Check','Cited'].includes(x.e.subtype);const sup=ev.filter(x=>x.rel==='supports'&&own(x)),opp=ev.filter(x=>x.rel==='opposes'&&own(x)),chk=ev.filter(x=>x.e.subtype==='Check'),cit=ev.filter(x=>x.e.subtype==='Cited');
  const g2=(label,xs)=>grp(label,xs.map(x=>x.e));
- return (c.subtype==='Alternative'?g2('argued against by',opp)+g2('in its favour',sup):g2('supported by',sup)+g2('argued against by',opp)+g2('checks',chk))+grp('read as',interp)+grp('future work',reqs)};
+ return (c.subtype==='Alternative'?g2('argued against by',opp.concat(cit.filter(x=>x.rel==='opposes')))+g2('in its favour',sup.concat(cit.filter(x=>x.rel==='supports'))):g2('supported by',sup)+g2('argued against by',opp)+g2('checks',chk)+g2('from cited work',cit))+grp('read as',interp)};
 let tree='';for(const q of G.nodes.filter(n=>n.type==='Question')){
  const addr=(ins[q.id]||[]).filter(e=>e.relation==='addresses').map(e=>N[e.subject]);
  const hyps=addr.filter(n=>n.subtype==='Hypothesis'),alts=addr.filter(n=>n.subtype==='Alternative'),plain=addr.filter(n=>!n.subtype);
