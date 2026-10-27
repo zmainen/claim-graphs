@@ -110,7 +110,7 @@ cd $CLAIM_GRAPHS_ROOT/runs/<paper>/mira-hand
 python3 <paper>_hand.py                                   # rebuild; refuses on a non-verbatim anchor
 python3 <cg>/scripts/mira_verify.py <paper>-hand.graph.json <page-text>.txt     # the checklist → .verification.json; exit 1 on any problem
 python3 <cg>/scripts/mira_align.py <paper>-hand.graph.json <other>.graph.json <hand-map>.json --out alignment.json   # counterpart table vs another graph of the same paper
-python3 <cg>/scripts/mira_viewer.py <paper>-hand.graph.json <page-text>.txt --compare <other>.graph.json alignment.json --compare-label "eLife's graph"   # → <paper>-hand.viewer.html, with a Compared tab
+python3 <cg>/scripts/mira_viewer.py <paper>-hand.graph.json <page-text>.txt --compare <other>.graph.json alignment.json --compare-label "eLife's graph" --embed-figures   # → <paper>-hand.viewer.html; --embed-figures inlines panel thumbnails (the artifact sandbox blocks eLife's image host), cached in .figcache/
 ```
 The viewer is one self-contained page: the article with claim markers at their anchors and the
 summary in the margin (the prototype's reading), a claims tree coloured by hypothesis / finding

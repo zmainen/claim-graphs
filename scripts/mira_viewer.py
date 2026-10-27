@@ -7,14 +7,30 @@ alternatives with what opposes them, checks marked); and the verification marks.
 The JSON, the article text and the verification verdicts are embedded, so the file is the
 deliverable's review surface and can be opened anywhere. Nothing is typed into it by hand.
 
-Usage: mira_viewer.py <graph.json> <anchor-text.txt> [--out viewer.html]
+Usage: mira_viewer.py <graph.json> <anchor-text.txt> [--out viewer.html] [--embed-figures]
                       [--compare <other.graph.json> <alignment.json> [--compare-label "eLife's graph"]]
 With --compare the viewer gets a "Compared with…" tab: provenance badges on every node of the tree
 (its counterpart in the other graph, or "new") and a three-column ledger per node type. The alignment
 file comes from mira_align.py.
 Expects <graph>.verification.json beside the graph (run mira_verify.py first).
 """
-import json, os, sys
+import base64, hashlib, json, os, sys, urllib.request
+
+def embed_figures(g, cache):
+    """Return {thumbnail URL: data URI} for every figure in the graph, fetched once into `cache` (gitignored).
+    Kept outside the graph so the JSON tab and the delivered file stay URLs."""
+    os.makedirs(cache, exist_ok=True)
+    seen = {}
+    for n in g["nodes"]:
+        f = n.get("figure")
+        if not f or not f.get("thumbnail"): continue
+        url = f["thumbnail"]
+        if url not in seen:
+            path = os.path.join(cache, hashlib.sha1(url.encode()).hexdigest() + ".jpg")
+            if not os.path.exists(path):
+                with urllib.request.urlopen(url, timeout=60) as r: open(path, "wb").write(r.read())
+            seen[url] = "data:image/jpeg;base64," + base64.b64encode(open(path, "rb").read()).decode()
+    print(f"embedded {len(seen)} figure thumbnails"); return seen
 
 def main():
     a = sys.argv[1:]
@@ -25,12 +41,13 @@ def main():
     vpath = gpath.replace(".graph.json", ".verification.json")
     v = json.load(open(vpath)) if os.path.exists(vpath) else {"nodes": {}, "edges": [], "summary": {}}
     title = g.get("paper", {}).get("title", "MIRA graph")
+    thumbs = embed_figures(g, os.path.join(os.path.dirname(os.path.abspath(gpath)), ".figcache")) if "--embed-figures" in a else {}
     cmp = None
     if "--compare" in a:
         i = a.index("--compare")
         cmp = {"graph": json.load(open(a[i + 1], encoding="utf-8")), "align": json.load(open(a[i + 2], encoding="utf-8")),
                "label": a[a.index("--compare-label") + 1] if "--compare-label" in a else "eLife's graph"}
-    payload = json.dumps({"graph": g, "text": text, "verification": v, "compare": cmp}, ensure_ascii=False).replace("</", "<\\/")
+    payload = json.dumps({"graph": g, "text": text, "verification": v, "compare": cmp, "thumbs": thumbs}, ensure_ascii=False).replace("</", "<\\/")
     html = TEMPLATE.replace("__TITLE__", title.replace("<", "&lt;")).replace("__PAYLOAD__", payload)
     open(out, "w", encoding="utf-8").write(html)
     print(f"wrote {out} ({len(html) // 1024} KB)")
@@ -98,7 +115,7 @@ const WORD={Q:'question',H:'hypothesis',F:'finding',A:'alternative',E:'evidence'
 const pre=n=>n.subtype==='Hypothesis'?'H':n.subtype==='Alternative'?'A':n.subtype==='Check'?'K':n.type==='Claim'?'F':n.type==='Evidence'?'E':n.type==='Question'?'Q':n.type==='Request'?'R':n.type==='Study'?'S':n.type==='Protocol'?'P':'D';
 const chip=n=>`<span class="id ${pre(n)}" data-go="${n.id}">${n.id}</span>`;
 const outs={},ins={};for(const e of G.edges){(outs[e.subject]??=[]).push(e);(ins[e.object]??=[]).push(e)}
-const TN=C?Object.fromEntries(C.graph.nodes.map(n=>[n.id,n])):{};const O2T=C?C.align.ours_to_theirs:null;
+const thumb=u=>D.thumbs?.[u]||u;const TN=C?Object.fromEntries(C.graph.nodes.map(n=>[n.id,n])):{};const O2T=C?C.align.ours_to_theirs:null;
 const prov=n=>!C?'':O2T[n.id]?`<span class="prov" title="${esc(O2T[n.id].map(t=>TN[t].text).join('\n'))}">= ${O2T[n.id].join(', ')} in ${esc(C.label)}</span>`:n.type==='Evidence'?'':`<span class="prov new">new</span>`;
 const studyOf=n=>n.study?N[n.study]?.text.split(':')[0]||n.study:'';
 // tabs
@@ -114,9 +131,9 @@ for(const s of segs){const parts=s.t.split('\n\n');parts.forEach((p,i)=>{if(i>0)
 flush();document.getElementById('text').innerHTML=html.join('');
 function verifyBadges(id){const v=V.nodes?.[id]||{};return `<div class="verify">${Object.entries(v).map(([c,r])=>`<span class="${r.ok?'ok':'bad'}" title="${esc(r.note)}">${c} ${r.ok?'✓':'✗'}</span>`).join('')}</div>`}
 function detail(n){const rel=(list,dir)=>(list||[]).filter(e=>['supports','opposes','addresses','observationStatement','request_target','grounds','follows'].includes(e.relation)).map(e=>{const o=N[dir==='out'?e.object:e.subject];return `<li><span class="rel">${e.relation}</span> ${dir==='in'?'← ':'→ '}${chip(o)} ${esc(o.description||o.text)}</li>`}).join('');
- const fig=n.figure?`<p><a href="${esc(n.figure.page)}" target="_blank">open ${esc(n.panel)} on eLife ↗</a></p><img src="${esc(n.figure.thumbnail)}" alt="${esc(n.panel)}">`:'';
- return `<div>${chip(n)} <span class="m">${WORD[pre(n)]}${n.panel?` · ${esc(n.panel)}`:''}${n.study?` · ${esc(studyOf(n))}`:''}${prov(n)}</span></div><h3>${esc(n.text)}</h3>${n.description&&n.description!==n.text?`<p class="sum">${esc(n.description)}</p>`:''}${n.notes?`<p class="q">${esc(n.notes)}</p>`:''}
- <p class="q">“${esc(n.anchor)}” <a href="#" data-id="${n.id}">in the article</a></p>${fig}${verifyBadges(n.id)}<ul>${rel(outs[n.id],'out')}${rel(ins[n.id],'in')}</ul>`}
+ const fig=n.figure?`<p><a href="${esc(n.figure.page)}" target="_blank">open ${esc(n.panel)} on eLife ↗</a></p><img src="${thumb(n.figure.thumbnail)}" alt="${esc(n.panel)}">`:'';
+ return `<div>${chip(n)} <span class="m">${WORD[pre(n)]}${n.panel?` · ${esc(n.panel)}`:''}${n.study?` · ${esc(studyOf(n))}`:''}${prov(n)}</span></div><h3>${esc(n.text)}</h3>${n.notes?`<p class="q">${esc(n.notes)}</p>`:''}
+ <p class="q">${n.text.includes(n.anchor)?'':`“${esc(n.anchor)}” `}<a href="#" data-id="${n.id}">in the article</a></p>${fig}${verifyBadges(n.id)}<ul>${rel(outs[n.id],'out')}${rel(ins[n.id],'in')}</ul>`}
 function show(id){const n=N[id];if(!n)return;document.querySelectorAll('mark.anc.on').forEach(m=>m.classList.remove('on'));document.querySelectorAll(`mark[data-id="${id}"]`).forEach(m=>m.classList.add('on'));
  document.getElementById('panel').innerHTML=detail(n);
  document.querySelector(`mark[data-id="${id}"]`)?.scrollIntoView({block:'center',behavior:'smooth'})}
@@ -125,7 +142,7 @@ document.body.addEventListener('click',e=>{const el=e.target.closest('[data-id],
   d=document.createElement('div');d.className='drawer';d.dataset.for=id;d.style.marginLeft=getComputedStyle(row).marginLeft;d.innerHTML=detail(N[id]);row.after(d);return}
  const id=el.dataset.id||el.dataset.go;if(!N[id])return;document.querySelector('[data-tab="article"]').click();show(id)});
 // ── tree: one row per node — chip, then summary (claims) or text (evidence) ─────────────
-const line=n=>n.type==='Evidence'||!n.description?n.text:n.description;
+const line=n=>n.description||n.text;
 const row=(n,lvl,extra='')=>`<div class="row lvl${lvl}">${chip(n)}<div class="t" data-open="${n.id}">${extra}${esc(line(n))}${prov(n)}</div></div>`;
 const evidenceFor=c=>(ins[c.id]||[]).filter(e=>N[e.subject]?.type==='Evidence').map(e=>({e:N[e.subject],rel:e.relation}));
 const evBlock=c=>{const ev=evidenceFor(c);if(!ev.length)return'';const sup=ev.filter(x=>x.rel==='supports'&&x.e.subtype!=='Check'),opp=ev.filter(x=>x.rel==='opposes'),chk=ev.filter(x=>x.e.subtype==='Check');
