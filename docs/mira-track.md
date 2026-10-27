@@ -97,7 +97,7 @@ specification (every node with statement, plain summary, study, panel, anchor; e
 the builder, which refuses to emit if an anchor is not verbatim in the page text, an edge breaks
 the grammar, or a panel is unaccounted for. It emits the extractor's working-graph shape (what
 eLife's prototype ingests, with `subtypes`, `coverage` and `figures`) and MIRA JSON-LD with the
-three `NodeSchema` subclasses. Validate the JSON-LD with `scripts/validate_mira.py` (expect only
+four `NodeSchema` subclasses (Hypothesis, Alternative, Check, Cited). Validate the JSON-LD with `scripts/validate_mira.py` (expect only
 the upstream `sh:in` violations and the closed `prov:Activity` refusal of title/description on
 Study nodes).
 
@@ -112,13 +112,29 @@ python3 <cg>/scripts/mira_verify.py <paper>-hand.graph.json <page-text>.txt     
 python3 <cg>/scripts/mira_align.py <paper>-hand.graph.json <other>.graph.json <hand-map>.json --out alignment.json   # counterpart table vs another graph of the same paper
 python3 <cg>/scripts/mira_viewer.py <paper>-hand.graph.json <page-text>.txt --compare <other>.graph.json alignment.json --compare-label "July prototype" --embed-figures   # → <paper>-hand.viewer.html; --embed-figures inlines panel thumbnails (the artifact sandbox blocks eLife's image host), cached in .figcache/
 ```
-The viewer is one self-contained page: the article with claim markers at their anchors and the
-summary in the margin (the prototype's reading), a claims tree coloured by hypothesis / finding
-/ alternative / evidence / check, the verification table, and the JSON. Publish it as its own
-artifact for review (Gädeke: https://claude.ai/artifact/2hV3hPEa8P1tgkVuzCrsHJ). Rules for the
-deliverable, agreed 26 Oct: summaries are one or two plain sentences with no editorial remarks
-(those go in `notes`); subclasses are shown, coloured; the extractor-shaped `.graph.json` is
-what goes to eLife's prototype, the JSON-LD alongside it for Paul.
+The viewer is one self-contained page in the language of eLife Pathways' prototype
+(https://elifepathways.github.io/ux-prototypes/OXA-MIRA-UX/#/article/105391): a masthead with
+title, authors and DOI; a sticky list of the major sections on the left, with the view buttons
+and the chip key beneath it; the article in the middle with every anchored passage underlined
+and tagged by its id chip, figures inline at their placeholders; the claims on the right, side by
+side with the text. Nothing switches tabs: clicking a passage opens its node on the right, and
+opening a row highlights and scrolls to its passage on the left. The claims column is a tree per
+question (hypotheses with their findings, other findings, alternatives), then the requests, the
+studies with their protocols, and the cited works with reference entries. One row per node, the
+plain summary only; a row opens in place to the full record (statement with statistic, quote,
+figure thumbnail and link, edges) and to its children — evidence grouped as supported by / argued
+against by / checks / from cited work, interpretations under "read as". One open node per level;
+"collapse all" closes everything. Ids are typed (Q H F A E K C R S P) and each row shows its
+counterpart in the compared graph (`= g3`) or `new`. Verification, Compared and JSON are folded
+under "internal" in the left margin so a shared page reads as a reader's tool. Publish it as its
+own artifact for review (Gädeke: https://claude.ai/artifact/2hV3hPEa8P1tgkVuzCrsHJ); the artifact
+sandbox blocks eLife's image host and page-started downloads, hence `--embed-figures` and no
+export link. Rules for the deliverable, agreed 26–27 Oct: summaries are one or two plain
+sentences with no editorial remarks (those go in `notes`); findings keep eLife's wording where the
+prototype has them; cited works are SourceDocuments with bibliography fields (`authors`, `year`,
+`title`, `journal`, `volume`, `pages`, `doi`, `url`) and their findings are `Cited` evidence;
+nodes may carry extra `anchors`; the extractor-shaped `.graph.json` is what goes to eLife's
+prototype, the JSON-LD alongside it for Paul.
 
 **6. The record.** `python3 scripts/mira_report.py <paper>` writes
 `runs/<paper>/mira-report/site/` (not committed); publish `index.html` as the artifact page and
