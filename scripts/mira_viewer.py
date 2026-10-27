@@ -79,15 +79,11 @@ main{padding-block:1rem 4rem}main:not(.on){display:none !important}main.on{displ
 .id.ref{background:none !important;border:1px solid currentColor;font-weight:400;opacity:.85}.id.ref.Q{color:var(--Q)}.id.ref.H{color:var(--H)}.id.ref.F{color:var(--F)}.id.ref.A{color:var(--A)}.id.ref.E{color:var(--E)}.id.ref.K{color:var(--K)}.id.ref.R{color:var(--R)}.id.ref.S,.id.ref.P,.id.ref.D{color:var(--ink-3)}
 .prov{font-size:.7rem;color:var(--ink-3);margin-left:.4rem;white-space:nowrap}.prov.new{color:var(--F)}
 /* article */
-#article.on{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:2rem}@media (max-width:900px){#article.on{grid-template-columns:1fr}}
+#article.on{display:block}#article .text{margin-inline:auto}
 .text{font-family:var(--serif);font-size:1.06rem;line-height:1.65;max-width:70ch}.text h2{font:600 1.25rem var(--sans);margin:1.8rem 0 .5rem}.text p{margin:0 0 .9rem}
 .text .fig{font-size:.92rem;color:var(--ink-2);border-left:3px solid var(--rule);padding-left:.8rem;margin:1rem 0}
 mark.anc{background:none;border-bottom:2px solid var(--rule);cursor:pointer;padding-bottom:1px}mark.anc:hover,mark.anc.on{background:var(--paper-2)}
 .text .id{margin-left:.2rem;vertical-align:2px}
-.margin{font-size:.85rem;color:var(--ink-2);border-left:2px solid var(--rule);padding-left:.7rem;margin:.2rem 0 1rem}.margin div{margin:.2rem 0;cursor:pointer;display:flex;gap:.5rem;align-items:baseline}.margin div:hover{color:var(--ink)}
-aside.panel{position:sticky;top:4.2rem;align-self:start;max-height:calc(100vh - 5rem);overflow:auto;background:var(--paper-2);border:1px solid var(--rule);border-radius:6px;padding:1rem;font-size:.92rem;display:grid;gap:.5rem}
-aside.panel h3{margin:0;font:600 1.05rem var(--serif)}aside.panel .sum{font-size:.95rem}aside.panel .q{color:var(--ink-2);font-style:italic}aside.panel .m{color:var(--ink-3);font-size:.82rem}
-aside.panel ul{margin:0;padding-left:1.1rem}aside.panel img{max-width:100%;border:1px solid var(--rule);background:#fff}
 .verify{display:flex;flex-wrap:wrap;gap:.3rem}.verify span{font-size:.72rem;padding:.05rem .4rem;border-radius:2px;background:var(--paper);border:1px solid var(--rule)}.verify .ok{color:var(--F)}.verify .bad{color:var(--A);border-color:var(--A)}
 .rel{font-family:var(--mono);font-size:.75rem;color:var(--link)}
 /* tree: rows */
@@ -106,7 +102,7 @@ details.ev{margin-left:3.2rem}details.ev>summary{cursor:pointer;font-size:.82rem
 <header class="top"><h1>__TITLE__</h1>
 <div class="legend"><span><span class="id Q">Q</span> question</span><span><span class="id H">H</span> hypothesis</span><span><span class="id F">F</span> finding</span><span><span class="id A">A</span> alternative</span><span><span class="id E">E</span> evidence</span><span><span class="id K">K</span> check</span><span><span class="id R">R</span> request</span></div>
 <div class="tabs" role="tablist"><button role="tab" data-tab="article" aria-selected="true">Article</button><button role="tab" data-tab="tree">Claims tree</button><button role="tab" data-tab="checks">Verification</button><button role="tab" data-tab="compare" id="cmptab" hidden>Compared</button><button role="tab" data-tab="json">JSON</button></div></header>
-<main id="article" class="on"><div class="text" id="text"></div><aside class="panel" id="panel"><h3>Select a marker</h3><p class="q">Click an underlined passage, an id chip or a row to see the full text, the quote in the paper, its figure and what it supports or opposes.</p></aside></main>
+<main id="article" class="on"><div class="text" id="text"></div></main>
 <main id="tree"></main><main id="checks"></main><main id="compare"></main><main id="json"><pre id="jsonpre"></pre></main>
 <script id="data" type="application/json">__PAYLOAD__</script>
 <script>
@@ -117,7 +113,7 @@ const pre=n=>n.subtype==='Hypothesis'?'H':n.subtype==='Alternative'?'A':n.subtyp
 const chip=(n,ref=false)=>`<span class="id ${pre(n)}${ref?' ref':''}" data-go="${n.id}">${n.id}</span>`;
 const outs={},ins={};for(const e of G.edges){(outs[e.subject]??=[]).push(e);(ins[e.object]??=[]).push(e)}
 const thumb=u=>D.thumbs?.[u]||u;const TN=C?Object.fromEntries(C.graph.nodes.map(n=>[n.id,n])):{};const O2T=C?C.align.ours_to_theirs:null;
-const prov=n=>!C?'':O2T[n.id]?`<span class="prov" title="${esc(O2T[n.id].map(t=>TN[t].text).join('\n'))}">= ${O2T[n.id].join(', ')} in ${esc(C.label)}</span>`:n.type==='Evidence'?'':`<span class="prov new">new</span>`;
+const prov=n=>!C?'':O2T[n.id]?`<span class="prov" title="${esc(C.label)}: ${esc(O2T[n.id].map(t=>TN[t].text).join('\n'))}">= ${O2T[n.id].join(', ')}</span>`:n.type==='Evidence'?'':`<span class="prov new">new</span>`;
 const studyOf=n=>n.study?N[n.study]?.text.split(':')[0]||n.study:'';
 // tabs
 document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tabs button').forEach(x=>x.setAttribute('aria-selected',x===b));document.querySelectorAll('main').forEach(m=>m.classList.toggle('on',m.id===b.dataset.tab))});
@@ -127,21 +123,23 @@ let segs=[{t:T}];
 for(const n of anchored){const out=[];for(const s of segs){if(s.n){out.push(s);continue}let i=s.t.indexOf(n.anchor);if(i<0){out.push(s);continue}out.push({t:s.t.slice(0,i)});out.push({t:n.anchor,n});out.push({t:s.t.slice(i+n.anchor.length)})}segs=out.filter(s=>s.t.length)}
 const html=[];let para=[];const flush=()=>{if(!para.length)return;const h=para.join('');const ids=[...new Set([...h.matchAll(/data-id="([^"]+)"/g)].map(m=>m[1]))];
  const body=h.startsWith('## ')?`<h2>${h.slice(3)}</h2>`:h.startsWith('[Figure')||h.startsWith('[Table')?`<p class="fig">${h}</p>`:`<p>${h}</p>`;
- html.push(body);if(ids.length)html.push(`<div class="margin">${ids.map(id=>`<div data-go="${id}">${chip(N[id])}<span>${esc(N[id].description||N[id].text)}</span></div>`).join('')}</div>`);para=[]};
+ html.push(body);para=[]};
 for(const s of segs){const parts=s.t.split('\n\n');parts.forEach((p,i)=>{if(i>0){flush()}const t=p.replace(/\n/g,' ');if(!t)return;para.push(s.n?`<mark class="anc" data-id="${s.n.id}">${esc(t)}</mark><span class="id ${pre(s.n)}" data-id="${s.n.id}">${s.n.id}</span>`:esc(t))})}
 flush();document.getElementById('text').innerHTML=html.join('');
 function verifyBadges(id){const bad=Object.entries(V.nodes?.[id]||{}).filter(([,r])=>!r.ok);return bad.length?`<div class="verify">${bad.map(([c,r])=>`<span class="bad" title="${esc(r.note)}">${c} ✗ ${esc(r.note)}</span>`).join('')}</div>`:''}
 function detail(n){const rel=(list,dir)=>(list||[]).filter(e=>['supports','opposes','addresses','observationStatement','request_target','grounds','follows'].includes(e.relation)).map(e=>{const a=N[e.subject],b=N[e.object],o=dir==='out'?b:a;return `<li>${chip(a,true)} <span class="rel">${e.relation}</span> ${chip(b,true)} ${esc(o.description||o.text)}</li>`}).join('');
- const fig=n.figure?`<p><a href="${esc(n.figure.page)}" target="_blank">open ${esc(n.panel)} on eLife ↗</a></p><img src="${thumb(n.figure.thumbnail)}" alt="${esc(n.panel)}">`:'';
- return `<div>${chip(n,true)} <span class="m">${WORD[pre(n)]}${n.panel?` · ${esc(n.panel)}`:''}${n.study?` · ${esc(studyOf(n))}`:''}${prov(n)}</span></div><h3>${esc(n.text)}</h3>${n.notes?`<p class="q">${esc(n.notes)}</p>`:''}
- <p class="q">${n.text.includes(n.anchor)?'':`“${esc(n.anchor)}” `}<a href="#" data-id="${n.id}">in the article</a></p>${fig}${verifyBadges(n.id)}<ul>${rel(outs[n.id],'out')}${rel(ins[n.id],'in')}</ul>`}
-function show(id){const n=N[id];if(!n)return;document.querySelectorAll('mark.anc.on').forEach(m=>m.classList.remove('on'));document.querySelectorAll(`mark[data-id="${id}"]`).forEach(m=>m.classList.add('on'));
- document.getElementById('panel').innerHTML=detail(n);
- document.querySelector(`mark[data-id="${id}"]`)?.scrollIntoView({block:'center',behavior:'smooth'})}
-document.body.addEventListener('click',e=>{const el=e.target.closest('[data-id],[data-go],[data-open]');if(!el||e.target.closest('a[href^="http"]'))return;e.preventDefault();
- if(el.dataset.open){const id=el.dataset.open,row=el.closest('.row');let d=row.nextElementSibling;if(d&&d.classList.contains('drawer')&&d.dataset.for===id){d.remove();return}
-  d=document.createElement('div');d.className='drawer';d.dataset.for=id;d.style.marginLeft=getComputedStyle(row).marginLeft;d.innerHTML=detail(N[id]);row.after(d);return}
- const id=el.dataset.id||el.dataset.go;if(!N[id])return;document.querySelector('[data-tab="article"]').click();show(id)});
+ return `<div class="m">${chip(n,true)}${n.study?` · ${esc(studyOf(n))}`:''}${n.panel?` · ${esc(n.panel)}`:''}${prov(n)}</div><h3>${esc(n.text)}</h3>${n.notes?`<p class="q">${esc(n.notes)}</p>`:''}
+ ${n.text.includes(n.anchor)?'':`<p class="q">“${esc(n.anchor)}”</p>`}<p class="m"><a href="#" data-article="${n.id}">article</a>${n.figure?` · <a href="${esc(n.figure.page)}" target="_blank">${esc(n.panel)} ↗</a>`:''}</p>${n.figure?`<img src="${thumb(n.figure.thumbnail)}" alt="${esc(n.panel)}">`:''}${verifyBadges(n.id)}<ul>${rel(outs[n.id],'out')}${rel(ins[n.id],'in')}</ul>`}
+function openDrawer(id){const t=document.querySelector(`#tree .t[data-open="${id}"],#tree [data-open="${id}"]`);if(!t)return false;const row=t.closest('.row')||t.closest('.qb');
+ let d=row.nextElementSibling;if(d&&d.classList.contains('drawer')&&d.dataset.for===id)return d;
+ let p=row.parentElement;while(p&&p.id!=='tree'){if(p.tagName==='DETAILS')p.open=true;p=p.parentElement}
+ d=document.createElement('div');d.className='drawer';d.dataset.for=id;d.style.marginLeft=getComputedStyle(row).marginLeft;d.innerHTML=detail(N[id]);row.after(d);return d}
+function show(id){const n=N[id];if(!n)return;document.querySelector('[data-tab="tree"]').click();const d=openDrawer(id);(d||document.getElementById('tree')).scrollIntoView({block:'start',behavior:'smooth'})}
+function showInArticle(id){document.querySelector('[data-tab="article"]').click();document.querySelectorAll('mark.anc.on').forEach(m=>m.classList.remove('on'));document.querySelectorAll(`mark[data-id="${id}"]`).forEach(m=>m.classList.add('on'));document.querySelector(`mark[data-id="${id}"]`)?.scrollIntoView({block:'center',behavior:'smooth'})}
+document.body.addEventListener('click',e=>{const el=e.target.closest('[data-id],[data-go],[data-open],[data-article]');if(!el||e.target.closest('a[href^="http"]'))return;e.preventDefault();
+ if(el.dataset.article){showInArticle(el.dataset.article);return}
+ if(el.dataset.open){const id=el.dataset.open,row=el.closest('.row')||el.closest('.qb');const d=row.nextElementSibling;if(d&&d.classList.contains('drawer')&&d.dataset.for===id){d.remove();return}openDrawer(id);return}
+ const id=el.dataset.id||el.dataset.go;if(N[id])show(id)});
 // ── tree: one row per node — chip, then summary (claims) or text (evidence) ─────────────
 const line=n=>n.description||n.text;
 const row=(n,lvl,extra='')=>`<div class="row lvl${lvl}">${chip(n)}<div class="t" data-open="${n.id}">${extra}${esc(line(n))}${prov(n)}</div></div>`;
@@ -169,7 +167,7 @@ document.getElementById('checks').innerHTML=`<p><b>${S.passed??'?'} of ${S.nodes
 ${rows?`<table><thead><tr><th>node</th><th>text</th><th>failing</th></tr></thead><tbody>${rows}</tbody></table>`:'<p>No node fails a check.</p>'}`;
 document.getElementById('jsonpre').textContent=JSON.stringify(G,null,1);
 // ── compare ─────────────────────────────────────────────────────────────────────────────
-if(C){document.getElementById('cmptab').hidden=false;document.getElementById('cmptab').textContent=`Compared with ${C.label}`;
+if(C){document.getElementById('cmptab').hidden=false;document.getElementById('cmptab').textContent=`Compared with the ${C.label}`;
  const T2O=C.align.theirs_to_ours;const tcell=n=>`<div><code>${n.id}</code> ${esc(n.text)}</div>`;const ocell=n=>`<div>${chip(n)} ${esc(line(n))}</div>`;
  const types=['Question','Claim','Evidence','Study','Protocol','SourceDocument','Request'];let h=`<p>Left: only in ${esc(C.label)}. Middle: in both, aligned by hand (questions, claims, studies, protocols, requests) or by the statistics quoted (evidence); the text shown is theirs, with our id and whether our wording is the same. Right: only here. ${C.graph.nodes.length} nodes there, ${G.nodes.length} here, ${Object.keys(T2O).length} of theirs matched.</p>`;
  for(const ty of types){const theirs=C.graph.nodes.filter(n=>n.type===ty),ours=G.nodes.filter(n=>n.type===ty);if(!theirs.length&&!ours.length)continue;
