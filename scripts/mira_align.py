@@ -19,9 +19,11 @@ def main():
     ours, theirs, hand = (json.load(open(p, encoding="utf-8")) for p in a[:3])
     out = a[a.index("--out") + 1] if "--out" in a else "alignment.json"
     O = {n["id"]: n for n in ours["nodes"]}; T = {n["id"]: n for n in theirs["nodes"]}
+    KEY = {n.get("key", n["id"]): n["id"] for n in ours["nodes"]}   # the hand map may use a node's `key` (its mnemonic)
     pairs = {}   # theirId -> ourId
     for section in ("claims", "questions", "requests", "protocols", "studies", "sources"):
         for t, o in (hand.get(section) or {}).items():
+            o = KEY.get(o, o)
             if t in T and o in O: pairs[t] = o
     oev = [n for n in ours["nodes"] if n["type"] == "Evidence"]
     for t in [n for n in theirs["nodes"] if n["type"] == "Evidence"]:
