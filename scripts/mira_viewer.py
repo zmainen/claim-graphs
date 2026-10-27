@@ -96,7 +96,7 @@ main{padding-block:1.2rem 5rem}main:not(.on){display:none !important}main.on{dis
 .toc{display:none}
 .text{font-size:1rem;line-height:1.7;padding-block:1.2rem 6rem}
 .text h2{font:600 1.25rem/1.3 var(--sans);margin:2.4rem 0 .7rem;scroll-margin-top:1rem}.text p{margin:0 0 1.1rem;text-wrap:pretty}
-.text .fig{font-size:.88rem;color:var(--ink-2);background:var(--paper-2);border-radius:8px;padding:.6rem .9rem;margin:1.2rem 0}
+.text .fig{font-size:.88rem;color:var(--ink-2);background:var(--paper-2);border-radius:8px;padding:.6rem .9rem;margin:1.2rem 0}figure.fig{margin:1.4rem 0;padding:.6rem}figure.fig img{width:100%;border-radius:4px;background:#fff}figure.fig figcaption{font-size:.8rem;color:var(--ink-3);margin-top:.4rem}
 mark.anc{background:none;color:inherit;border-bottom:1.5px solid var(--rule);cursor:pointer;padding-bottom:1px}mark.anc:hover{background:var(--paper-2)}
 mark.anc.on{background:color-mix(in srgb,var(--cur) 12%,transparent);border-bottom-color:var(--cur)}
 .text .id{margin-left:.25rem;vertical-align:3px;font-size:.62rem}
@@ -107,6 +107,7 @@ mark.anc.on{background:color-mix(in srgb,var(--cur) 12%,transparent);border-bott
 .row{display:grid;grid-template-columns:auto 1fr;gap:.6rem;align-items:baseline;padding:.5rem .8rem;margin:.3rem 0;border:1px solid var(--rule);border-radius:8px;scroll-margin-top:3.6rem;transition:background .15s,border-color .15s}
 .row:hover{background:var(--paper-2)}.row .t{cursor:pointer;font-size:.92rem;line-height:1.45}.row .w{font:500 .64rem var(--sans);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);margin-right:.45rem}
 .row.lvl1{margin-left:0}.row.lvl2{margin-left:1.6rem}.row.lvl3{margin-left:3.2rem}
+.row.lvl2,.row.lvl3{position:relative}.row.lvl2::before,.row.lvl3::before{content:"";position:absolute;left:-1rem;top:-.4rem;bottom:50%;width:.7rem;border-left:1.5px solid var(--rule);border-bottom:1.5px solid var(--rule);border-bottom-left-radius:6px}
 .row.open{border-color:var(--ink-3)}.row.cur{border-color:var(--cur);background:color-mix(in srgb,var(--cur) 6%,transparent)}
 .tagr{float:right;margin-left:.6rem;font:500 .68rem var(--sans);color:var(--ink-2)}.tagr span{background:var(--paper-3);border-radius:4px;padding:.05rem .4rem;margin-left:.25rem;white-space:nowrap}
 .drawer{background:var(--paper-2);border-radius:8px;padding:.9rem 1rem;margin:.1rem 0 .9rem;font-size:.9rem;display:grid;gap:.45rem}
@@ -146,15 +147,17 @@ document.querySelectorAll('.tabs [data-tab]').forEach(b=>b.onclick=()=>tab(b.dat
 document.getElementById('collapse').onclick=()=>{document.querySelectorAll('.drawer').forEach(d=>d.remove());document.querySelectorAll('.row.open,.row.cur').forEach(r=>r.classList.remove('open','cur'));document.querySelectorAll('mark.anc.on').forEach(m=>m.classList.remove('on'))};
 const narrow=()=>matchMedia('(max-width:900px)').matches;
 // ── article: mark anchors; margin shows chip + summary ──────────────────────────────────
-const anchored=G.nodes.filter(n=>n.anchor&&T.includes(n.anchor)&&n.type!=='SourceDocument').sort((a,b)=>b.anchor.length-a.anchor.length);
+const anchored=G.nodes.filter(n=>n.type!=='SourceDocument').flatMap(n=>[n.anchor,...(n.anchors||[])].filter(a=>a&&T.includes(a)).map(a=>({n,a}))).sort((x,y)=>y.a.length-x.a.length);
 let segs=[{t:T}];
-for(const n of anchored){const out=[];for(const s of segs){if(s.n){out.push(s);continue}let i=s.t.indexOf(n.anchor);if(i<0){out.push(s);continue}out.push({t:s.t.slice(0,i)});out.push({t:n.anchor,n});out.push({t:s.t.slice(i+n.anchor.length)})}segs=out.filter(s=>s.t.length)}
+for(const {n,a} of anchored){const out=[];for(const s of segs){if(s.n){out.push(s);continue}let i=s.t.indexOf(a);if(i<0){out.push(s);continue}out.push({t:s.t.slice(0,i)});out.push({t:a,n});out.push({t:s.t.slice(i+a.length)})}segs=out.filter(s=>s.t.length)}
 const html=[];let para=[];const flush=()=>{if(!para.length)return;const h=para.join('');const ids=[...new Set([...h.matchAll(/data-id="([^"]+)"/g)].map(m=>m[1]))];
- const body=h.startsWith('## ')?`<h2>${h.slice(3)}</h2>`:h.startsWith('[Figure')||h.startsWith('[Table')?`<p class="fig">${h}</p>`:`<p>${h}</p>`;
+ const fm=h.match(/^\[(Figure \d+)[:.]?\]/);const fg=fm&&Object.values(G.figures||{}).find(f=>new RegExp('^'+fm[1]+'[A-Z]?$').test(f.label));
+ const body=h.startsWith('## ')?`<h2>${h.slice(3)}</h2>`:fg?`<figure class="fig"><a href="${esc(fg.page)}" target="_blank"><img src="${thumb(fg.thumbnail)}" alt="${esc(fm[1])}"></a><figcaption>${esc(fm[1])} · <a href="${esc(fg.page)}" target="_blank">on eLife ↗</a></figcaption></figure>`:h.startsWith('[Figure')||h.startsWith('[Table')?`<p class="fig">${h}</p>`:`<p>${h}</p>`;
  html.push(body);para=[]};
 for(const s of segs){const parts=s.t.split('\n\n');parts.forEach((p,i)=>{if(i>0){flush()}const t=p.replace(/\n/g,' ');if(!t)return;para.push(s.n?`<mark class="anc" data-id="${s.n.id}">${esc(t)}</mark><span class="id ${pre(s.n)}" data-id="${s.n.id}">${s.n.id}</span>`:esc(t))})}
 flush();document.getElementById('text').innerHTML=html.join('');
-const P=G.paper||{};document.getElementById('meta').innerHTML=`${P.authors?`<span><b>${esc(P.authors.map(a=>a.name).join(', '))}</b></span>`:''}${P.doi?`<span><a href="https://doi.org/${esc(P.doi)}" target="_blank">doi:${esc(P.doi)}</a></span>`:''}<span>${G.nodes.length} nodes · ${G.edges.length} edges</span>${G.source?`<span>${esc(G.source)}</span>`:''}`;
+const P=G.paper||{};document.getElementById('meta').innerHTML=`${P.authors?`<span><b>${esc(P.authors.map(a=>a.name).join(', '))}</b></span>`:''}${P.doi?`<span><a href="https://doi.org/${esc(P.doi)}" target="_blank">doi:${esc(P.doi)}</a></span>`:''}<span>${G.nodes.length} nodes · ${G.edges.length} edges</span><span><a href="#" data-tool-link="json">graph JSON</a></span>`;
+document.querySelector('[data-tool-link]').onclick=e=>{e.preventDefault();const b=document.querySelector('[data-tool="json"]');b?b.click():tab('json')};
 const toc=document.getElementById('toc');const MAJOR=/^(abstract|introduction|results|discussion|materials and methods|methods|references|elife assessment|elife digest)$/i;const heads=[...document.querySelectorAll('#article .text h2')];
 heads.forEach((h,i)=>{h.id='sec'+i;toc.add(new Option(h.textContent,h.id))});toc.onchange=()=>{const h=document.getElementById(toc.value);narrow()?h.scrollIntoView({block:'start'}):paneScroll(document.getElementById('article'),h,.04)};
 const majors=heads.filter(h=>MAJOR.test(h.textContent.trim()));const sec=document.getElementById('sections');

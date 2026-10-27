@@ -57,8 +57,9 @@ def main():
             ns = len(sentences(d))
             ok = 1 <= ns <= 2 and not EDITORIAL.match(d)
             flag(nid, "summary", ok, "" if ok else ("missing" if not d else f"{ns} sentences" if ns > 2 else "editorial register"))
-        a = n.get("anchor")
-        flag(nid, "anchor", bool(a) and a in text, "" if a and a in text else ("missing" if not a else "not verbatim"))
+        a = n.get("anchor"); extra = [x for x in n.get("anchors", []) if x not in text]
+        ok = bool(a) and a in text and not extra
+        flag(nid, "anchor", ok, "" if ok else ("missing" if not a else "not verbatim" if a not in text else f"{len(extra)} extra anchor(s) not verbatim"))
         if n["type"] == "Evidence":
             # grounded in a Study, or a cited finding whose sourceDocument is a SourceDocument node
             cited = n.get("sourceDocument") in N and N[n["sourceDocument"]]["type"] == "SourceDocument"
