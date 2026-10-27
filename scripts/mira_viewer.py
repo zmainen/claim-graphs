@@ -55,76 +55,78 @@ def main():
 TEMPLATE = r'''<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="claude:viewport-fit-sides" content="cover"><title>Gädeke claims viewer</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=DM+Mono:wght@500&display=swap">
 <style>
-/* Editorial reading tool. Two columns: the article as a journal page on the left, the claims apparatus on the right.
-   Paper is warm; colour belongs only to the typed id chips; the current node is marked in vermilion on both sides. */
-:root{color-scheme:light;--paper:#faf8f3;--paper-2:#f1ede4;--paper-3:#e8e2d5;--ink:#1c1a16;--ink-2:#55514a;--ink-3:#8c877d;--rule:#ddd6c8;--link:#1f4e8c;--cur:#c8401e;
- --Q:#5b3f8f;--H:#1f4e8c;--F:#2d6b45;--A:#b2402d;--E:#4d7a5f;--K:#b2731c;--R:#7a5a2a;--S:#6b665c;--P:#6b665c;--D:#6b665c;--C:#6b665c;
- --serif:"Newsreader",Georgia,"Times New Roman",serif;--sans:"IBM Plex Sans","Helvetica Neue",Arial,sans-serif;--mono:"IBM Plex Mono",ui-monospace,Menlo,monospace}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;--paper:#191814;--paper-2:#22201b;--paper-3:#2c2923;--ink:#e9e4d8;--ink-2:#b7b1a3;--ink-3:#847e72;--rule:#35322b;--link:#8fb4ea;--cur:#f07a55;
- --Q:#c2a6ea;--H:#8fb4ea;--F:#8ccaa0;--A:#ea8e7a;--E:#8ccaa0;--K:#e4ae5a;--R:#d6b47c;--S:#9b958a;--P:#9b958a;--D:#9b958a;--C:#9b958a}}
-:root[data-theme="dark"]{color-scheme:dark;--paper:#191814;--paper-2:#22201b;--paper-3:#2c2923;--ink:#e9e4d8;--ink-2:#b7b1a3;--ink-3:#847e72;--rule:#35322b;--link:#8fb4ea;--cur:#f07a55;
- --Q:#c2a6ea;--H:#8fb4ea;--F:#8ccaa0;--A:#ea8e7a;--E:#8ccaa0;--K:#e4ae5a;--R:#d6b47c;--S:#9b958a;--P:#9b958a;--D:#9b958a;--C:#9b958a}
+/* In the language of eLife Pathways' prototype: white page, DM Sans, a sticky section list on the left of a
+   centred article column, cards on the right. Here the right column is the claims apparatus, side by side
+   with the text; colour is reserved for the typed id chips and one accent for the current node. */
+:root{color-scheme:light;--paper:#fff;--paper-2:#f6f6f8;--paper-3:#ebebef;--ink:#1a1a1f;--ink-2:#55565e;--ink-3:#8a8b94;--rule:#e3e3e8;--link:#1d4ed8;--cur:#d9480f;
+ --Q:#5b3f8f;--H:#1e4b8f;--F:#2a6b45;--A:#b23a2a;--E:#4a7a5e;--K:#b26d14;--R:#7a5a2a;--S:#6b6c75;--P:#6b6c75;--D:#6b6c75;--C:#6b6c75;
+ --sans:"DM Sans","Helvetica Neue",Arial,sans-serif;--mono:"DM Mono",ui-monospace,Menlo,monospace}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;--paper:#141418;--paper-2:#1d1d23;--paper-3:#2a2a32;--ink:#ecebf0;--ink-2:#b4b3bc;--ink-3:#7f7f89;--rule:#2d2d35;--link:#8fb1ff;--cur:#ff8a4c;
+ --Q:#c3a8ee;--H:#93b4f2;--F:#8fcda4;--A:#ee8f7d;--E:#8fcda4;--K:#e6b05e;--R:#d8b67e;--S:#9d9da6;--P:#9d9da6;--D:#9d9da6;--C:#9d9da6}}
+:root[data-theme="dark"]{color-scheme:dark;--paper:#141418;--paper-2:#1d1d23;--paper-3:#2a2a32;--ink:#ecebf0;--ink-2:#b4b3bc;--ink-3:#7f7f89;--rule:#2d2d35;--link:#8fb1ff;--cur:#ff8a4c;
+ --Q:#c3a8ee;--H:#93b4f2;--F:#8fcda4;--A:#ee8f7d;--E:#8fcda4;--K:#e6b05e;--R:#d8b67e;--S:#9d9da6;--P:#9d9da6;--D:#9d9da6;--C:#9d9da6}
 *{box-sizing:border-box}html,body{margin:0;height:100%}
-body{background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.5;display:flex;flex-direction:column;height:100vh;overflow:hidden;
- padding-left:max(20px,env(safe-area-inset-left,0px));padding-right:max(20px,env(safe-area-inset-right,0px))}
-a{color:var(--link);text-decoration-thickness:1px;text-underline-offset:2px} button{font:inherit;cursor:pointer}
-/* masthead */
-header.top{flex:none;display:grid;grid-template-columns:1fr auto;gap:.2rem 2rem;align-items:end;padding:.9rem 0 .6rem;border-bottom:2px solid var(--ink)}
-header.top h1{font:500 1.35rem/1.2 var(--serif);letter-spacing:-.005em;margin:0;max-width:60ch}
-header.top .meta{grid-column:1;font-size:.8rem;color:var(--ink-2);display:flex;flex-wrap:wrap;gap:.2rem 1rem}header.top .meta b{font-weight:500;color:var(--ink)}
-.legend{grid-column:2;grid-row:1;display:flex;flex-wrap:wrap;justify-content:end;gap:.25rem .7rem;font-size:.74rem;color:var(--ink-2)}
-.tabs{grid-column:2;grid-row:2;display:flex;justify-content:end;gap:.15rem}.tabs button{background:none;border:1px solid transparent;border-radius:3px;padding:.2rem .6rem;color:var(--ink-2);font-size:.82rem;letter-spacing:.01em}
-.tabs button[aria-selected="true"]{background:var(--ink);color:var(--paper);border-color:var(--ink)}.tabs button:hover:not([aria-selected="true"]){border-color:var(--rule)}
-#collapse{margin-left:.5rem;color:var(--ink-3);border:1px dashed var(--rule)}
-/* panes */
-.split{display:grid;grid-template-columns:minmax(0,11fr) minmax(0,13fr);grid-template-rows:minmax(0,1fr);gap:0;flex:1;min-height:0}
-.pane{overflow-y:auto;min-height:0}#article{border-right:1px solid var(--rule);padding-right:1.6rem}.pane.right{padding-left:1.6rem}
+body{background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.55;display:flex;flex-direction:column;height:100vh;overflow:hidden;padding-inline:max(24px,env(safe-area-inset-left,0px)) max(24px,env(safe-area-inset-right,0px))}
+a{color:var(--link);text-decoration:none}a:hover{text-decoration:underline} button{font:inherit;cursor:pointer}
+/* masthead: title and authors over the article column, nothing else */
+header.top{flex:none;padding:1.4rem 0 1rem;border-bottom:1px solid var(--rule)}
+header.top h1{font:600 1.55rem/1.25 var(--sans);letter-spacing:-.01em;margin:0 0 .45rem;max-width:62ch}
+header.top .meta{font-size:.86rem;color:var(--ink-2);display:flex;flex-wrap:wrap;gap:.2rem 1.2rem;max-width:90ch}header.top .meta b{font-weight:500;color:var(--ink)}
+.legend,.tabs{display:none}
+/* three columns: section list · article · claims */
+.split{display:grid;grid-template-columns:150px minmax(0,58ch) minmax(0,1fr);grid-template-rows:minmax(0,1fr);gap:2.2rem;flex:1;min-height:0}
+.pane{overflow-y:auto;min-height:0}
+nav.sections{padding-top:1.4rem;font-size:.86rem;position:sticky;top:0;align-self:start}
+nav.sections a{display:block;color:var(--ink-2);padding:.28rem 0 .28rem .8rem;border-left:2px solid var(--rule);line-height:1.3}nav.sections a.cur{color:var(--ink);border-left-color:var(--ink);font-weight:500}nav.sections a:hover{text-decoration:none;color:var(--ink)}
+nav.sections .key{margin-top:1.6rem;padding-left:.8rem;display:grid;gap:.25rem;font-size:.78rem;color:var(--ink-2)}nav.sections .key div{display:flex;gap:.45rem;align-items:center}
+nav.sections .tools{margin-top:1.4rem;padding-left:.8rem;display:grid;gap:.3rem}nav.sections .tools button{text-align:left;background:none;border:1px solid var(--rule);border-radius:6px;padding:.3rem .6rem;color:var(--ink-2);font-size:.8rem}nav.sections .tools button[aria-selected="true"]{background:var(--ink);color:var(--paper);border-color:var(--ink)}
 #arttab{display:none}
-@media (max-width:900px){body{height:auto;overflow:auto;display:block}.split{display:block}.pane{overflow:visible}#article{border:0;padding:0}.pane.right{padding:0}#article:not(.on){display:none}#arttab{display:inline-block}header.top{display:flex;flex-wrap:wrap;gap:.4rem 1rem}}
-main{padding-block:1rem 5rem}main:not(.on){display:none !important}main.on{display:block}
-/* id chip */
-.id{display:inline-block;font:500 .7rem/1.5 var(--mono);padding:0 .32rem;border-radius:2px;color:var(--paper);background:var(--ink-3);min-width:2.3em;text-align:center;cursor:pointer;vertical-align:1px;letter-spacing:.02em}
+@media (max-width:1100px){.split{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}nav.sections{display:none}}
+@media (max-width:900px){body{height:auto;overflow:auto;display:block}.split{display:block}.pane{overflow:visible}#article:not(.on){display:none}.tabs{display:flex;flex-wrap:wrap;gap:.3rem;padding:.6rem 0}.tabs button{background:none;border:1px solid var(--rule);border-radius:6px;padding:.25rem .6rem;color:var(--ink-2)}.tabs button[aria-selected="true"]{background:var(--ink);color:var(--paper)}#arttab{display:inline-block}}
+main{padding-block:1.2rem 5rem}main:not(.on){display:none !important}main.on{display:block}
+/* id chips */
+.id{display:inline-block;font:500 .7rem/1.55 var(--mono);padding:0 .34rem;border-radius:4px;color:#fff;background:var(--ink-3);min-width:2.3em;text-align:center;cursor:pointer;vertical-align:1px}
 .id.Q{background:var(--Q)}.id.H{background:var(--H)}.id.F{background:var(--F)}.id.A{background:var(--A)}.id.E{background:var(--E)}.id.K{background:var(--K)}.id.R{background:var(--R)}.id.C{background:var(--C)}
 .id.cited{background:none !important;color:var(--E);border:1px dashed var(--E)}
-.id.ref{background:none !important;border:1px solid currentColor;font-weight:500;opacity:.9}.id.ref.Q{color:var(--Q)}.id.ref.H{color:var(--H)}.id.ref.F{color:var(--F)}.id.ref.A{color:var(--A)}.id.ref.E{color:var(--E)}.id.ref.K{color:var(--K)}.id.ref.R{color:var(--R)}.id.ref.C,.id.ref.S,.id.ref.P,.id.ref.D{color:var(--ink-3)}
-.prov{font:400 .7rem var(--mono);color:var(--ink-3);margin-left:.45rem;white-space:nowrap}.prov.new{color:var(--F)}
+.id.ref{background:none !important;border:1px solid currentColor;opacity:.9}.id.ref.Q{color:var(--Q)}.id.ref.H{color:var(--H)}.id.ref.F{color:var(--F)}.id.ref.A{color:var(--A)}.id.ref.E{color:var(--E)}.id.ref.K{color:var(--K)}.id.ref.R{color:var(--R)}.id.ref.C,.id.ref.S,.id.ref.P,.id.ref.D{color:var(--ink-3)}
+.prov{font:400 .72rem var(--mono);color:var(--ink-3);margin-left:.45rem;white-space:nowrap}.prov.new{color:var(--F)}
 /* article */
-.toc{position:sticky;top:0;z-index:2;background:var(--paper);padding:.6rem 0 .5rem;border-bottom:1px solid var(--rule);display:flex;gap:.6rem;align-items:center;font-size:.78rem;color:var(--ink-3)}
-.toc select{font:inherit;color:var(--ink-2);background:var(--paper-2);border:1px solid var(--rule);border-radius:3px;padding:.15rem .4rem;max-width:100%}
-.text{font-family:var(--serif);font-size:1.12rem;line-height:1.6;max-width:66ch;padding-block:1.2rem 5rem;font-variation-settings:"opsz" 16}
-.text h2{font:500 1.3rem/1.25 var(--serif);margin:2.2rem 0 .6rem;scroll-margin-top:3.2rem}.text p{margin:0 0 1rem;text-wrap:pretty}
-.text .fig{font:.9rem/1.5 var(--sans);color:var(--ink-2);border-left:3px solid var(--paper-3);padding-left:.8rem;margin:1.2rem 0}
-mark.anc{background:none;color:inherit;border-bottom:1.5px solid var(--rule);cursor:pointer;padding-bottom:1px;transition:background .15s}mark.anc:hover{background:var(--paper-2)}
+.toc{display:none}
+.text{font-size:1rem;line-height:1.7;padding-block:1.2rem 6rem}
+.text h2{font:600 1.25rem/1.3 var(--sans);margin:2.4rem 0 .7rem;scroll-margin-top:1rem}.text p{margin:0 0 1.1rem;text-wrap:pretty}
+.text .fig{font-size:.88rem;color:var(--ink-2);background:var(--paper-2);border-radius:8px;padding:.6rem .9rem;margin:1.2rem 0}
+mark.anc{background:none;color:inherit;border-bottom:1.5px solid var(--rule);cursor:pointer;padding-bottom:1px}mark.anc:hover{background:var(--paper-2)}
 mark.anc.on{background:color-mix(in srgb,var(--cur) 12%,transparent);border-bottom-color:var(--cur)}
 .text .id{margin-left:.25rem;vertical-align:3px;font-size:.62rem}
-/* claims pane */
-#tree{max-width:84ch}
-.qb{margin:0 0 2.4rem}.qb>h2{position:sticky;top:0;z-index:2;background:var(--paper);font:500 1.15rem/1.3 var(--serif);margin:0;padding:.7rem 0 .4rem;display:flex;gap:.6rem;align-items:baseline;border-bottom:1px solid var(--ink)}
-.qb>h2 .id{font-size:.68rem;vertical-align:2px}.qb>.s{color:var(--ink-2);font-size:.88rem;margin:.5rem 0 .8rem}
-.row{display:grid;grid-template-columns:auto 1fr;gap:.65rem;align-items:baseline;padding:.38rem 0;border-top:1px solid var(--rule);scroll-margin-top:3.4rem;transition:background .15s}
-.row:hover{background:var(--paper-2)}.row .t{cursor:pointer;font-size:.95rem;line-height:1.45}.row .w{font:500 .64rem var(--sans);letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3);margin-right:.45rem}
-.row.lvl1{margin-left:0}.row.lvl2{margin-left:1.8rem}.row.lvl3{margin-left:3.6rem}
-.row.open>.id{box-shadow:0 0 0 2px var(--paper),0 0 0 3.5px currentColor}.row.cur{background:color-mix(in srgb,var(--cur) 8%,transparent)}.row.cur>.id{outline:2px solid var(--cur);outline-offset:1px}
-.drawer{background:var(--paper-2);border-left:3px solid var(--paper-3);padding:.8rem 1rem .9rem 1.1rem;margin:.1rem 0 .8rem;font-size:.9rem;display:grid;gap:.45rem}
-.drawer .m{color:var(--ink-3);font-size:.78rem;font-family:var(--mono)}.drawer .m a{font-family:var(--sans)}
-.drawer h3{margin:0;font:500 1.08rem/1.35 var(--serif);text-wrap:pretty}.drawer .sum{margin:0;font-size:.95rem}.drawer .q{color:var(--ink-2);font-style:italic;margin:0;font-family:var(--serif);font-size:.98rem}
-.drawer .figrow{display:grid;grid-template-columns:1fr auto;gap:.8rem;align-items:start}.drawer img{max-width:260px;border:1px solid var(--rule);background:#fff;border-radius:2px}
-.drawer ul{margin:0;padding:0;list-style:none;display:grid;gap:.2rem}.drawer li{font-size:.86rem}.rel{font:500 .7rem var(--mono);color:var(--ink-3);margin:0 .2rem;letter-spacing:.02em}
-.drawer .grp{font:500 .64rem var(--sans);letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3);margin-top:.5rem}.drawer .row{border-top:1px solid var(--rule);padding:.3rem 0;margin-left:0}.drawer .row:hover{background:var(--paper)}
-.drawer .drawer{margin-left:0 !important;background:var(--paper);border-left-color:var(--rule)}
-.verify{display:flex;flex-wrap:wrap;gap:.3rem}.verify span{font-size:.72rem;padding:.05rem .4rem;border-radius:2px;background:var(--paper);border:1px solid var(--rule)}.verify .bad{color:var(--A);border-color:var(--A)}
+/* claims column: question blocks and cards, as the prototype draws them */
+#tree{max-width:76ch}
+.qb{margin:0 0 2rem}.qb>h2{position:sticky;top:0;z-index:2;background:var(--paper-2);border-radius:8px;font:500 1rem/1.4 var(--sans);margin:0 0 .6rem;padding:.8rem 1rem;display:flex;gap:.6rem;align-items:baseline}
+.qb>h2 .id{font-size:.68rem;vertical-align:2px}.qb>.s{color:var(--ink-2);font-size:.86rem;margin:0 1rem .9rem}
+.row{display:grid;grid-template-columns:auto 1fr;gap:.6rem;align-items:baseline;padding:.5rem .8rem;margin:.3rem 0;border:1px solid var(--rule);border-radius:8px;scroll-margin-top:3.6rem;transition:background .15s,border-color .15s}
+.row:hover{background:var(--paper-2)}.row .t{cursor:pointer;font-size:.92rem;line-height:1.45}.row .w{font:500 .64rem var(--sans);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);margin-right:.45rem}
+.row.lvl1{margin-left:0}.row.lvl2{margin-left:1.6rem}.row.lvl3{margin-left:3.2rem}
+.row.open{border-color:var(--ink-3)}.row.cur{border-color:var(--cur);background:color-mix(in srgb,var(--cur) 6%,transparent)}
+.tagr{float:right;margin-left:.6rem;font:500 .68rem var(--sans);color:var(--ink-2)}.tagr span{background:var(--paper-3);border-radius:4px;padding:.05rem .4rem;margin-left:.25rem;white-space:nowrap}
+.drawer{background:var(--paper-2);border-radius:8px;padding:.9rem 1rem;margin:.1rem 0 .9rem;font-size:.9rem;display:grid;gap:.45rem}
+.drawer .m{color:var(--ink-3);font-size:.78rem}
+.drawer h3{margin:0;font:500 1rem/1.45 var(--sans);text-wrap:pretty}.drawer .sum{margin:0}.drawer .q{color:var(--ink-2);font-style:italic;margin:0}
+.drawer .figrow{display:grid;grid-template-columns:1fr auto;gap:.8rem;align-items:start}.drawer img{max-width:240px;border:1px solid var(--rule);background:#fff;border-radius:6px}
+.drawer ul{margin:0;padding:0;list-style:none;display:grid;gap:.2rem}.drawer li{font-size:.86rem}.rel{font:500 .7rem var(--mono);color:var(--ink-3);margin:0 .2rem}
+.drawer .grp{font:500 .64rem var(--sans);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);margin-top:.5rem}.drawer .row{background:var(--paper);margin-left:0}.drawer .row:hover{background:var(--paper)}
+.drawer .drawer{margin-left:0 !important;background:var(--paper);border:1px solid var(--rule)}
+.verify{display:flex;flex-wrap:wrap;gap:.3rem}.verify span{font-size:.72rem;padding:.05rem .4rem;border-radius:4px;background:var(--paper);border:1px solid var(--rule)}.verify .bad{color:var(--A);border-color:var(--A)}
 /* checks, compare, json */
 #checks{max-width:90ch}#checks table{width:100%;border-collapse:collapse;font-size:.88rem}#checks td,#checks th{text-align:left;vertical-align:top;padding:.3rem .5rem;border-top:1px solid var(--rule)}
-#compare.on{display:block;max-width:1200px}#compare table{width:100%;border-collapse:collapse;font-size:.86rem;margin:.4rem 0 1.4rem}#compare th,#compare td{vertical-align:top;text-align:left;padding:.35rem .5rem;border-top:1px solid var(--rule);width:33%}#compare th{font-weight:500;color:var(--ink-2)}#compare td>div{margin:.3rem 0}#compare .s{color:var(--ink-3);font-size:.78rem}#compare h2{font:500 1.05rem var(--serif);margin:1.4rem 0 .2rem}
+#compare.on{display:block}#compare table{width:100%;border-collapse:collapse;font-size:.86rem;margin:.4rem 0 1.4rem}#compare th,#compare td{vertical-align:top;text-align:left;padding:.35rem .5rem;border-top:1px solid var(--rule);width:33%}#compare th{font-weight:500;color:var(--ink-2)}#compare td>div{margin:.3rem 0}#compare .s{color:var(--ink-3);font-size:.78rem}#compare h2{font:500 1rem var(--sans);margin:1.4rem 0 .2rem}
 #json pre{font:.76rem/1.5 var(--mono);white-space:pre-wrap;word-break:break-word}
-@media print{body{height:auto;overflow:visible;display:block}.split{display:block}.pane{overflow:visible}#article{border:0}.tabs,#collapse,.toc{display:none}main{display:block !important}#json,#compare,#checks{display:none !important}}
+@media print{body{height:auto;overflow:visible;display:block}.split{display:block}.pane{overflow:visible}nav.sections{display:none}main{display:block !important}#json,#compare,#checks{display:none !important}}
 </style></head><body>
 <header class="top"><h1>__TITLE__</h1><div class="meta" id="meta"></div>
 <div class="legend"><span><span class="id Q">Q</span> question</span><span><span class="id H">H</span> hypothesis</span><span><span class="id F">F</span> finding</span><span><span class="id A">A</span> alternative</span><span><span class="id E">E</span> evidence</span><span><span class="id K">K</span> check</span><span><span class="id E cited">E</span> cited finding</span><span><span class="id C">C</span> cited work</span><span><span class="id R">R</span> request</span></div>
 <div class="tabs" role="tablist"><button role="tab" data-tab="article" id="arttab">Article</button><button role="tab" data-tab="tree" aria-selected="true">Claims</button><button role="tab" data-tab="checks">Verification</button><button role="tab" data-tab="compare" id="cmptab" hidden>Compared</button><button role="tab" data-tab="json">JSON</button><button id="collapse" title="close every open node">collapse</button></div></header>
-<div class="split"><section id="article" class="pane"><nav class="toc">section <select id="toc"></select></nav><div class="text" id="text"></div></section>
+<div class="split"><nav class="sections" id="sections"></nav><section id="article" class="pane"><nav class="toc">section <select id="toc"></select></nav><div class="text" id="text"></div></section>
 <section class="pane right"><main id="tree" class="on"></main><main id="checks"></main><main id="compare"></main><main id="json"><pre id="jsonpre"></pre></main></section></div>
 <script id="data" type="application/json">__PAYLOAD__</script>
 <script>
@@ -153,7 +155,15 @@ const html=[];let para=[];const flush=()=>{if(!para.length)return;const h=para.j
 for(const s of segs){const parts=s.t.split('\n\n');parts.forEach((p,i)=>{if(i>0){flush()}const t=p.replace(/\n/g,' ');if(!t)return;para.push(s.n?`<mark class="anc" data-id="${s.n.id}">${esc(t)}</mark><span class="id ${pre(s.n)}" data-id="${s.n.id}">${s.n.id}</span>`:esc(t))})}
 flush();document.getElementById('text').innerHTML=html.join('');
 const P=G.paper||{};document.getElementById('meta').innerHTML=`${P.authors?`<span><b>${esc(P.authors.map(a=>a.name).join(', '))}</b></span>`:''}${P.doi?`<span><a href="https://doi.org/${esc(P.doi)}" target="_blank">doi:${esc(P.doi)}</a></span>`:''}<span>${G.nodes.length} nodes · ${G.edges.length} edges</span>${G.source?`<span>${esc(G.source)}</span>`:''}`;
-const toc=document.getElementById('toc');document.querySelectorAll('#article .text h2').forEach((h,i)=>{h.id='sec'+i;toc.add(new Option(h.textContent,h.id))});toc.onchange=()=>{const h=document.getElementById(toc.value);narrow()?h.scrollIntoView({block:'start'}):paneScroll(document.getElementById('article'),h,.04)};
+const toc=document.getElementById('toc');const MAJOR=/^(abstract|introduction|results|discussion|materials and methods|methods|references|elife assessment|elife digest)$/i;const heads=[...document.querySelectorAll('#article .text h2')];
+heads.forEach((h,i)=>{h.id='sec'+i;toc.add(new Option(h.textContent,h.id))});toc.onchange=()=>{const h=document.getElementById(toc.value);narrow()?h.scrollIntoView({block:'start'}):paneScroll(document.getElementById('article'),h,.04)};
+const majors=heads.filter(h=>MAJOR.test(h.textContent.trim()));const sec=document.getElementById('sections');
+sec.innerHTML=majors.map(h=>`<a href="#${h.id}" data-sec="${h.id}">${esc(h.textContent)}</a>`).join('')+`<div class="tools">${[...document.querySelectorAll('.tabs [data-tab]')].filter(b=>b.id!=='arttab').map(b=>`<button data-tool="${b.dataset.tab}" ${b.hidden?'hidden':''} aria-selected="${b.getAttribute('aria-selected')}">${b.textContent}</button>`).join('')}<button id="collapse2">collapse all</button></div>
+<div class="key"><div><span class="id Q">Q</span>question</div><div><span class="id H">H</span>hypothesis</div><div><span class="id F">F</span>finding</div><div><span class="id A">A</span>alternative</div><div><span class="id E">E</span>evidence</div><div><span class="id K">K</span>check</div><div><span class="id E cited">E</span>cited finding</div><div><span class="id C">C</span>cited work</div><div><span class="id R">R</span>request</div></div>`;
+sec.querySelectorAll('a[data-sec]').forEach(a=>a.onclick=e=>{e.preventDefault();const h=document.getElementById(a.dataset.sec);narrow()?h.scrollIntoView({block:'start'}):paneScroll(document.getElementById('article'),h,.02)});
+sec.querySelectorAll('[data-tool]').forEach(b=>b.onclick=()=>{tab(b.dataset.tool);sec.querySelectorAll('[data-tool]').forEach(x=>x.setAttribute('aria-selected',x===b))});
+document.getElementById('collapse2').onclick=()=>document.getElementById('collapse').click();
+const artPane=document.getElementById('article');artPane.addEventListener('scroll',()=>{const top=artPane.getBoundingClientRect().top+80;let cur=majors[0];for(const h of majors){if(h.getBoundingClientRect().top<=top)cur=h}sec.querySelectorAll('a[data-sec]').forEach(a=>a.classList.toggle('cur',a.dataset.sec===cur?.id))},{passive:true});
 function verifyBadges(id){const bad=Object.entries(V.nodes?.[id]||{}).filter(([,r])=>!r.ok);return bad.length?`<div class="verify">${bad.map(([c,r])=>`<span class="bad" title="${esc(r.note)}">${c} ✗ ${esc(r.note)}</span>`).join('')}</div>`:''}
 function detail(n){const rel=(list,dir)=>(list||[]).filter(e=>['supports','opposes','addresses','observationStatement','request_target','grounds','follows'].includes(e.relation)).filter(e=>!(dir==='in'&&n.type==='Claim'&&['supports','opposes','request_target'].includes(e.relation))&&!(dir==='out'&&n.type==='Study'&&e.relation==='follows')&&!(dir==='out'&&n.type==='Request'&&e.relation==='request_target')&&!(n.type==='SourceDocument')&&!(e.relation==='describesActivity')&&!(dir==='out'&&n.type==='Claim'&&e.relation==='supports'&&N[e.object].type==='Claim'&&!N[e.object].subtype)).map(e=>{const a=N[e.subject],b=N[e.object],o=dir==='out'?b:a;return `<li>${chip(a,true)} <span class="rel">${e.relation}</span> ${chip(b,true)} ${esc(o.description||o.text)}</li>`}).join('');
  return `<div class="m">${chip(n,true)}${n.study?` · ${esc(studyOf(n))}`:''}${n.panel?` · ${esc(n.panel)}`:''}${prov(n)}</div>${n.type==='SourceDocument'?`<p class="sum">${esc(n.description)}</p>`:`<h3>${esc(n.text)}</h3>`}${n.notes?`<p class="q">${esc(n.notes)}</p>`:''}
@@ -179,7 +189,8 @@ document.body.addEventListener('click',e=>{const el=e.target.closest('[data-id],
 // ── tree: one row per node — chip, then summary (claims) or text (evidence) ─────────────
 const line=n=>n.type==='SourceDocument'?n.text:(n.description||n.text);
 const isInterp=n=>n.type==='Claim'&&!n.subtype&&(ins[n.id]||[]).some(e=>e.relation==='supports'&&N[e.subject].type==='Claim'&&!N[e.subject].subtype);
-const row=(n,lvl,extra='',tail='')=>`<div class="row lvl${lvl}">${chip(n)}<div class="t" data-open="${n.id}">${extra}${esc(line(n))}${prov(n)}${tail}</div></div>`;
+const tags=n=>{const t=[];if(n.panel&&!/^cited/.test(n.panel))t.push(n.panel);if(n.study)t.push(studyOf(n));if(n.type==='Claim'){const st=new Set(evidenceFor(n).map(x=>studyOf(x.e)).filter(Boolean)),pn=new Set(evidenceFor(n).map(x=>x.e.panel).filter(p=>p&&!/^cited/.test(p)));if(pn.size)t.push(pn.size===1?[...pn][0]:`${pn.size} panels`);[...st].sort().forEach(x=>t.push(x))}return t.length?`<span class="tagr">${t.map(x=>`<span>${esc(x)}</span>`).join('')}</span>`:''};
+const row=(n,lvl,extra='',tail='')=>`<div class="row lvl${lvl}">${chip(n)}<div class="t" data-open="${n.id}">${tags(n)}${extra}${esc(line(n))}${prov(n)}${tail}</div></div>`;
 const evidenceFor=c=>(ins[c.id]||[]).filter(e=>N[e.subject]?.type==='Evidence').map(e=>({e:N[e.subject],rel:e.relation}));
 const children=c=>{const grp=(label,xs)=>xs.length?`<div class="grp">${label}</div>${xs.map(e=>row(e,0)).join('')}`:'';
  if(c.type==='Study'){const ps=(outs[c.id]||[]).filter(e=>e.relation==='follows').map(e=>N[e.object]);const ne=(outs[c.id]||[]).filter(e=>e.relation==='grounds').length;return grp('protocols',ps)+`<p class="m">grounds ${ne} pieces of evidence, listed under the claims they bear on</p>`}
@@ -208,7 +219,7 @@ document.getElementById('checks').innerHTML=`<p><b>${S.passed??'?'} of ${S.nodes
 ${rows?`<table><thead><tr><th>node</th><th>text</th><th>failing</th></tr></thead><tbody>${rows}</tbody></table>`:'<p>No node fails a check.</p>'}`;
 document.getElementById('jsonpre').textContent=JSON.stringify(G,null,1);
 // ── compare ─────────────────────────────────────────────────────────────────────────────
-if(C){document.getElementById('cmptab').hidden=false;document.getElementById('cmptab').textContent=`Compared with the ${C.label}`;
+if(C){document.getElementById('cmptab').hidden=false;document.getElementById('cmptab').textContent=`Compared with the ${C.label}`;const tb=document.querySelector('[data-tool="compare"]');if(tb){tb.hidden=false;tb.textContent=`Compared with the ${C.label}`}
  const T2O=C.align.theirs_to_ours;const tcell=n=>`<div><code>${n.id}</code> ${esc(n.text)}</div>`;const ocell=n=>`<div>${chip(n)} ${esc(line(n))}</div>`;
  const types=['Question','Claim','Evidence','Study','Protocol','SourceDocument','Request'];let h=`<p>Left: only in ${esc(C.label)}. Middle: in both, aligned by hand (questions, claims, studies, protocols, requests) or by the statistics quoted (evidence); the text shown is theirs, with our id and whether our wording is the same. Right: only here. ${C.graph.nodes.length} nodes there, ${G.nodes.length} here, ${Object.keys(T2O).length} of theirs matched.</p>`;
  for(const ty of types){const theirs=C.graph.nodes.filter(n=>n.type===ty),ours=G.nodes.filter(n=>n.type===ty);if(!theirs.length&&!ours.length)continue;
