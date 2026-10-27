@@ -55,58 +55,76 @@ def main():
 TEMPLATE = r'''<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="claude:viewport-fit-sides" content="cover"><title>Gädeke claims viewer</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=Source+Sans+3:wght@400;600&family=JetBrains+Mono:wght@400&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
 <style>
-/* One line per node, one id chip per node; full text only on demand in the side panel. Palette: paper white, one colour per kind, used only on the chip. */
-:root{color-scheme:light;--paper:#fff;--paper-2:#f4f4f2;--ink:#212121;--ink-2:#555;--ink-3:#888;--rule:#dcdcd8;--link:#0a4f8a;
- --Q:#6b3f9c;--H:#1f4e9c;--F:#2b6b3f;--A:#b03a2e;--E:#4a7a5a;--K:#b8740f;--R:#7a5c2e;--S:#777;--P:#777;--D:#777;
- --serif:"Source Serif 4",Georgia,serif;--sans:"Source Sans 3","Helvetica Neue",Arial,sans-serif;--mono:"JetBrains Mono",ui-monospace,Menlo,monospace}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;--paper:#17181b;--paper-2:#202228;--ink:#e8e6e1;--ink-2:#b5b2aa;--ink-3:#85827b;--rule:#32353c;--link:#8fb8ea;
- --Q:#c7a3e6;--H:#8fb0ea;--F:#86c79a;--A:#e38b80;--E:#86c79a;--K:#e0aa55;--R:#d6b27c;--S:#999;--P:#999;--D:#999}}
-:root[data-theme="dark"]{color-scheme:dark;--paper:#17181b;--paper-2:#202228;--ink:#e8e6e1;--ink-2:#b5b2aa;--ink-3:#85827b;--rule:#32353c;--link:#8fb8ea;
- --Q:#c7a3e6;--H:#8fb0ea;--F:#86c79a;--A:#e38b80;--E:#86c79a;--K:#e0aa55;--R:#d6b27c;--S:#999;--P:#999;--D:#999}
+/* Editorial reading tool. Two columns: the article as a journal page on the left, the claims apparatus on the right.
+   Paper is warm; colour belongs only to the typed id chips; the current node is marked in vermilion on both sides. */
+:root{color-scheme:light;--paper:#faf8f3;--paper-2:#f1ede4;--paper-3:#e8e2d5;--ink:#1c1a16;--ink-2:#55514a;--ink-3:#8c877d;--rule:#ddd6c8;--link:#1f4e8c;--cur:#c8401e;
+ --Q:#5b3f8f;--H:#1f4e8c;--F:#2d6b45;--A:#b2402d;--E:#4d7a5f;--K:#b2731c;--R:#7a5a2a;--S:#6b665c;--P:#6b665c;--D:#6b665c;--C:#6b665c;
+ --serif:"Newsreader",Georgia,"Times New Roman",serif;--sans:"IBM Plex Sans","Helvetica Neue",Arial,sans-serif;--mono:"IBM Plex Mono",ui-monospace,Menlo,monospace}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;--paper:#191814;--paper-2:#22201b;--paper-3:#2c2923;--ink:#e9e4d8;--ink-2:#b7b1a3;--ink-3:#847e72;--rule:#35322b;--link:#8fb4ea;--cur:#f07a55;
+ --Q:#c2a6ea;--H:#8fb4ea;--F:#8ccaa0;--A:#ea8e7a;--E:#8ccaa0;--K:#e4ae5a;--R:#d6b47c;--S:#9b958a;--P:#9b958a;--D:#9b958a;--C:#9b958a}}
+:root[data-theme="dark"]{color-scheme:dark;--paper:#191814;--paper-2:#22201b;--paper-3:#2c2923;--ink:#e9e4d8;--ink-2:#b7b1a3;--ink-3:#847e72;--rule:#35322b;--link:#8fb4ea;--cur:#f07a55;
+ --Q:#c2a6ea;--H:#8fb4ea;--F:#8ccaa0;--A:#ea8e7a;--E:#8ccaa0;--K:#e4ae5a;--R:#d6b47c;--S:#9b958a;--P:#9b958a;--D:#9b958a;--C:#9b958a}
 *{box-sizing:border-box}html,body{margin:0;height:100%}
-body{background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1.5;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;height:100vh;overflow:hidden}
-.split{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,6fr);grid-template-rows:minmax(0,1fr);gap:1.5rem;flex:1;min-height:0}.pane{overflow-y:auto;min-height:0}#article{border-right:1px solid var(--rule);padding-right:1.5rem}
-#arttab,#collapse{display:none}#collapse{display:inline-block;margin-left:.6rem;border-style:dashed}
-@media (max-width:900px){body{height:auto;overflow:auto;display:block}.split{display:block}.pane{overflow:visible}#article{border:0;padding:0}#article:not(.on){display:none}#arttab{display:inline-block}}
-a{color:var(--link)} button{font:inherit;cursor:pointer}
-header.top{display:flex;flex-wrap:wrap;gap:.4rem 1.2rem;align-items:baseline;padding:.8rem 0 .4rem;border-bottom:1px solid var(--rule);background:var(--paper);z-index:3;flex:none}
-header.top h1{font:600 1.05rem var(--sans);margin:0}
-.tabs{display:flex;gap:.2rem;margin-left:auto}.tabs button{background:none;border:1px solid var(--rule);border-radius:4px;padding:.3rem .7rem;color:var(--ink-2)}.tabs button[aria-selected="true"]{background:var(--paper-2);color:var(--ink);border-color:var(--ink-3)}
-.legend{display:flex;flex-wrap:wrap;gap:.3rem .9rem;font-size:.82rem;color:var(--ink-2)}
-main{padding-block:1rem 4rem}main:not(.on){display:none !important}main.on{display:block}
-/* id chip: the one thing every node shows everywhere */
-.id{display:inline-block;font:600 .72rem var(--mono);padding:.02rem .3rem;border-radius:3px;color:#fff;background:var(--ink-3);min-width:2.2em;text-align:center;cursor:pointer;vertical-align:1px}
-.id.Q{background:var(--Q)}.id.H{background:var(--H)}.id.F{background:var(--F)}.id.A{background:var(--A)}.id.E{background:var(--E)}.id.K{background:var(--K)}.id.R{background:var(--R)}.id.C{background:var(--ink-3)}.id.cited{background:none !important;color:var(--E);border:1px dashed var(--E)}
-.id.ref{background:none !important;border:1px solid currentColor;font-weight:400;opacity:.85}.id.ref.Q{color:var(--Q)}.id.ref.H{color:var(--H)}.id.ref.F{color:var(--F)}.id.ref.A{color:var(--A)}.id.ref.E{color:var(--E)}.id.ref.K{color:var(--K)}.id.ref.C{color:var(--ink-3)}.id.ref.R{color:var(--R)}.id.ref.S,.id.ref.P,.id.ref.D{color:var(--ink-3)}
-.prov{font-size:.7rem;color:var(--ink-3);margin-left:.4rem;white-space:nowrap}.prov.new{color:var(--F)}
+body{background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.5;display:flex;flex-direction:column;height:100vh;overflow:hidden;
+ padding-left:max(20px,env(safe-area-inset-left,0px));padding-right:max(20px,env(safe-area-inset-right,0px))}
+a{color:var(--link);text-decoration-thickness:1px;text-underline-offset:2px} button{font:inherit;cursor:pointer}
+/* masthead */
+header.top{flex:none;display:grid;grid-template-columns:1fr auto;gap:.2rem 2rem;align-items:end;padding:.9rem 0 .6rem;border-bottom:2px solid var(--ink)}
+header.top h1{font:500 1.35rem/1.2 var(--serif);letter-spacing:-.005em;margin:0;max-width:60ch}
+header.top .meta{grid-column:1;font-size:.8rem;color:var(--ink-2);display:flex;flex-wrap:wrap;gap:.2rem 1rem}header.top .meta b{font-weight:500;color:var(--ink)}
+.legend{grid-column:2;grid-row:1;display:flex;flex-wrap:wrap;justify-content:end;gap:.25rem .7rem;font-size:.74rem;color:var(--ink-2)}
+.tabs{grid-column:2;grid-row:2;display:flex;justify-content:end;gap:.15rem}.tabs button{background:none;border:1px solid transparent;border-radius:3px;padding:.2rem .6rem;color:var(--ink-2);font-size:.82rem;letter-spacing:.01em}
+.tabs button[aria-selected="true"]{background:var(--ink);color:var(--paper);border-color:var(--ink)}.tabs button:hover:not([aria-selected="true"]){border-color:var(--rule)}
+#collapse{margin-left:.5rem;color:var(--ink-3);border:1px dashed var(--rule)}
+/* panes */
+.split{display:grid;grid-template-columns:minmax(0,11fr) minmax(0,13fr);grid-template-rows:minmax(0,1fr);gap:0;flex:1;min-height:0}
+.pane{overflow-y:auto;min-height:0}#article{border-right:1px solid var(--rule);padding-right:1.6rem}.pane.right{padding-left:1.6rem}
+#arttab{display:none}
+@media (max-width:900px){body{height:auto;overflow:auto;display:block}.split{display:block}.pane{overflow:visible}#article{border:0;padding:0}.pane.right{padding:0}#article:not(.on){display:none}#arttab{display:inline-block}header.top{display:flex;flex-wrap:wrap;gap:.4rem 1rem}}
+main{padding-block:1rem 5rem}main:not(.on){display:none !important}main.on{display:block}
+/* id chip */
+.id{display:inline-block;font:500 .7rem/1.5 var(--mono);padding:0 .32rem;border-radius:2px;color:var(--paper);background:var(--ink-3);min-width:2.3em;text-align:center;cursor:pointer;vertical-align:1px;letter-spacing:.02em}
+.id.Q{background:var(--Q)}.id.H{background:var(--H)}.id.F{background:var(--F)}.id.A{background:var(--A)}.id.E{background:var(--E)}.id.K{background:var(--K)}.id.R{background:var(--R)}.id.C{background:var(--C)}
+.id.cited{background:none !important;color:var(--E);border:1px dashed var(--E)}
+.id.ref{background:none !important;border:1px solid currentColor;font-weight:500;opacity:.9}.id.ref.Q{color:var(--Q)}.id.ref.H{color:var(--H)}.id.ref.F{color:var(--F)}.id.ref.A{color:var(--A)}.id.ref.E{color:var(--E)}.id.ref.K{color:var(--K)}.id.ref.R{color:var(--R)}.id.ref.C,.id.ref.S,.id.ref.P,.id.ref.D{color:var(--ink-3)}
+.prov{font:400 .7rem var(--mono);color:var(--ink-3);margin-left:.45rem;white-space:nowrap}.prov.new{color:var(--F)}
 /* article */
-#article .text{margin-inline:auto;padding-block:1rem 4rem}
-.text{font-family:var(--serif);font-size:1.06rem;line-height:1.65;max-width:70ch}.text h2{font:600 1.25rem var(--sans);margin:1.8rem 0 .5rem}.text p{margin:0 0 .9rem}
-.text .fig{font-size:.92rem;color:var(--ink-2);border-left:3px solid var(--rule);padding-left:.8rem;margin:1rem 0}
-mark.anc{background:none;color:inherit;border-bottom:2px solid var(--rule);cursor:pointer;padding-bottom:1px}mark.anc:hover,mark.anc.on{background:var(--paper-2)}
-.text .id{margin-left:.2rem;vertical-align:2px}
-.verify{display:flex;flex-wrap:wrap;gap:.3rem}.verify span{font-size:.72rem;padding:.05rem .4rem;border-radius:2px;background:var(--paper);border:1px solid var(--rule)}.verify .ok{color:var(--F)}.verify .bad{color:var(--A);border-color:var(--A)}
-.rel{font-family:var(--mono);font-size:.75rem;color:var(--link)}
-/* tree: rows */
-#tree{max-width:80ch;margin-inline:auto}.row.open>.id{box-shadow:0 0 0 2px var(--paper),0 0 0 3px currentColor}.row.cur{background:var(--paper-2)}mark.anc.on{background:var(--paper-2);border-bottom-color:var(--ink)}.qb{margin:1.6rem 0}.qb>h2{font:600 1.15rem var(--serif);margin:0 0 .2rem;display:flex;gap:.6rem;align-items:baseline}.qb>.drawer{margin-bottom:.8rem}.qb>.s{color:var(--ink-2);margin:0 0 .6rem}
-.row{display:grid;grid-template-columns:auto 1fr;gap:.6rem;align-items:baseline;padding:.3rem 0;border-top:1px solid var(--rule);scroll-margin-top:.5rem}.row:hover{background:var(--paper-2)}
-.row .t{cursor:pointer}.row .w{font:600 .68rem var(--sans);letter-spacing:.05em;text-transform:uppercase;color:var(--ink-3);margin-right:.4rem}
-.row.lvl1{margin-left:0}.row.lvl2{margin-left:1.6rem}.row.lvl3{margin-left:3.2rem;font-size:.92rem}.row.lvl3 .t{color:var(--ink-2)}
-details.ev{margin-left:3.2rem}details.ev>summary{cursor:pointer;font-size:.82rem;color:var(--ink-3);padding:.15rem 0}details.ev .row{margin-left:0;font-size:.9rem}
-.drawer .grp{font:600 .68rem var(--sans);letter-spacing:.05em;text-transform:uppercase;color:var(--ink-3);margin-top:.5rem}.drawer .row{border-top:1px solid var(--rule);padding:.25rem 0}.drawer .row:hover{background:var(--paper)}.drawer .drawer{margin-left:0 !important}
-.drawer{background:var(--paper-2);border:1px solid var(--rule);border-radius:6px;padding:.8rem 1rem;margin:.2rem 0 .6rem;font-size:.9rem;display:grid;gap:.4rem}.drawer h3{margin:0;font:600 1rem var(--serif)}.drawer .q{color:var(--ink-2);font-style:italic;margin:0}.drawer .m{color:var(--ink-3);font-size:.82rem}.drawer img{max-width:360px;border:1px solid var(--rule);background:#fff}.drawer ul{margin:0;padding-left:1.1rem}.drawer p{margin:0}
-.note{font-size:.82rem;color:var(--ink-3);margin-left:3.2rem;padding:.2rem 0}
+.toc{position:sticky;top:0;z-index:2;background:var(--paper);padding:.6rem 0 .5rem;border-bottom:1px solid var(--rule);display:flex;gap:.6rem;align-items:center;font-size:.78rem;color:var(--ink-3)}
+.toc select{font:inherit;color:var(--ink-2);background:var(--paper-2);border:1px solid var(--rule);border-radius:3px;padding:.15rem .4rem;max-width:100%}
+.text{font-family:var(--serif);font-size:1.12rem;line-height:1.6;max-width:66ch;padding-block:1.2rem 5rem;font-variation-settings:"opsz" 16}
+.text h2{font:500 1.3rem/1.25 var(--serif);margin:2.2rem 0 .6rem;scroll-margin-top:3.2rem}.text p{margin:0 0 1rem;text-wrap:pretty}
+.text .fig{font:.9rem/1.5 var(--sans);color:var(--ink-2);border-left:3px solid var(--paper-3);padding-left:.8rem;margin:1.2rem 0}
+mark.anc{background:none;color:inherit;border-bottom:1.5px solid var(--rule);cursor:pointer;padding-bottom:1px;transition:background .15s}mark.anc:hover{background:var(--paper-2)}
+mark.anc.on{background:color-mix(in srgb,var(--cur) 12%,transparent);border-bottom-color:var(--cur)}
+.text .id{margin-left:.25rem;vertical-align:3px;font-size:.62rem}
+/* claims pane */
+#tree{max-width:84ch}
+.qb{margin:0 0 2.4rem}.qb>h2{position:sticky;top:0;z-index:2;background:var(--paper);font:500 1.15rem/1.3 var(--serif);margin:0;padding:.7rem 0 .4rem;display:flex;gap:.6rem;align-items:baseline;border-bottom:1px solid var(--ink)}
+.qb>h2 .id{font-size:.68rem;vertical-align:2px}.qb>.s{color:var(--ink-2);font-size:.88rem;margin:.5rem 0 .8rem}
+.row{display:grid;grid-template-columns:auto 1fr;gap:.65rem;align-items:baseline;padding:.38rem 0;border-top:1px solid var(--rule);scroll-margin-top:3.4rem;transition:background .15s}
+.row:hover{background:var(--paper-2)}.row .t{cursor:pointer;font-size:.95rem;line-height:1.45}.row .w{font:500 .64rem var(--sans);letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3);margin-right:.45rem}
+.row.lvl1{margin-left:0}.row.lvl2{margin-left:1.8rem}.row.lvl3{margin-left:3.6rem}
+.row.open>.id{box-shadow:0 0 0 2px var(--paper),0 0 0 3.5px currentColor}.row.cur{background:color-mix(in srgb,var(--cur) 8%,transparent)}.row.cur>.id{outline:2px solid var(--cur);outline-offset:1px}
+.drawer{background:var(--paper-2);border-left:3px solid var(--paper-3);padding:.8rem 1rem .9rem 1.1rem;margin:.1rem 0 .8rem;font-size:.9rem;display:grid;gap:.45rem}
+.drawer .m{color:var(--ink-3);font-size:.78rem;font-family:var(--mono)}.drawer .m a{font-family:var(--sans)}
+.drawer h3{margin:0;font:500 1.08rem/1.35 var(--serif);text-wrap:pretty}.drawer .sum{margin:0;font-size:.95rem}.drawer .q{color:var(--ink-2);font-style:italic;margin:0;font-family:var(--serif);font-size:.98rem}
+.drawer .figrow{display:grid;grid-template-columns:1fr auto;gap:.8rem;align-items:start}.drawer img{max-width:260px;border:1px solid var(--rule);background:#fff;border-radius:2px}
+.drawer ul{margin:0;padding:0;list-style:none;display:grid;gap:.2rem}.drawer li{font-size:.86rem}.rel{font:500 .7rem var(--mono);color:var(--ink-3);margin:0 .2rem;letter-spacing:.02em}
+.drawer .grp{font:500 .64rem var(--sans);letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3);margin-top:.5rem}.drawer .row{border-top:1px solid var(--rule);padding:.3rem 0;margin-left:0}.drawer .row:hover{background:var(--paper)}
+.drawer .drawer{margin-left:0 !important;background:var(--paper);border-left-color:var(--rule)}
+.verify{display:flex;flex-wrap:wrap;gap:.3rem}.verify span{font-size:.72rem;padding:.05rem .4rem;border-radius:2px;background:var(--paper);border:1px solid var(--rule)}.verify .bad{color:var(--A);border-color:var(--A)}
 /* checks, compare, json */
-#checks{max-width:90ch;margin-inline:auto}#checks table{width:100%;border-collapse:collapse;font-size:.9rem}#checks td,#checks th{text-align:left;vertical-align:top;padding:.3rem .5rem;border-top:1px solid var(--rule)}
-#compare.on{display:block;max-width:1200px;margin:0 auto;padding:1rem 0}#compare table{width:100%;border-collapse:collapse;font-size:.9rem;margin:.4rem 0 1.4rem}#compare th,#compare td{vertical-align:top;text-align:left;padding:.35rem .5rem;border-top:1px solid var(--rule);width:33%}#compare th{font-weight:600;color:var(--ink-2)}#compare td>div{margin:.25rem 0}#compare .s{color:var(--ink-3);font-size:.8rem}#compare h2{font-size:1rem;margin:1.2rem 0 .2rem}
-#json pre{font:.78rem var(--mono);white-space:pre-wrap;word-break:break-word}
+#checks{max-width:90ch}#checks table{width:100%;border-collapse:collapse;font-size:.88rem}#checks td,#checks th{text-align:left;vertical-align:top;padding:.3rem .5rem;border-top:1px solid var(--rule)}
+#compare.on{display:block;max-width:1200px}#compare table{width:100%;border-collapse:collapse;font-size:.86rem;margin:.4rem 0 1.4rem}#compare th,#compare td{vertical-align:top;text-align:left;padding:.35rem .5rem;border-top:1px solid var(--rule);width:33%}#compare th{font-weight:500;color:var(--ink-2)}#compare td>div{margin:.3rem 0}#compare .s{color:var(--ink-3);font-size:.78rem}#compare h2{font:500 1.05rem var(--serif);margin:1.4rem 0 .2rem}
+#json pre{font:.76rem/1.5 var(--mono);white-space:pre-wrap;word-break:break-word}
+@media print{body{height:auto;overflow:visible;display:block}.split{display:block}.pane{overflow:visible}#article{border:0}.tabs,#collapse,.toc{display:none}main{display:block !important}#json,#compare,#checks{display:none !important}}
 </style></head><body>
-<header class="top"><h1>__TITLE__</h1>
+<header class="top"><h1>__TITLE__</h1><div class="meta" id="meta"></div>
 <div class="legend"><span><span class="id Q">Q</span> question</span><span><span class="id H">H</span> hypothesis</span><span><span class="id F">F</span> finding</span><span><span class="id A">A</span> alternative</span><span><span class="id E">E</span> evidence</span><span><span class="id K">K</span> check</span><span><span class="id E cited">E</span> cited finding</span><span><span class="id C">C</span> cited work</span><span><span class="id R">R</span> request</span></div>
 <div class="tabs" role="tablist"><button role="tab" data-tab="article" id="arttab">Article</button><button role="tab" data-tab="tree" aria-selected="true">Claims</button><button role="tab" data-tab="checks">Verification</button><button role="tab" data-tab="compare" id="cmptab" hidden>Compared</button><button role="tab" data-tab="json">JSON</button><button id="collapse" title="close every open node">collapse</button></div></header>
-<div class="split"><section id="article" class="pane"><div class="text" id="text"></div></section>
+<div class="split"><section id="article" class="pane"><nav class="toc">section <select id="toc"></select></nav><div class="text" id="text"></div></section>
 <section class="pane right"><main id="tree" class="on"></main><main id="checks"></main><main id="compare"></main><main id="json"><pre id="jsonpre"></pre></main></section></div>
 <script id="data" type="application/json">__PAYLOAD__</script>
 <script>
@@ -134,10 +152,12 @@ const html=[];let para=[];const flush=()=>{if(!para.length)return;const h=para.j
  html.push(body);para=[]};
 for(const s of segs){const parts=s.t.split('\n\n');parts.forEach((p,i)=>{if(i>0){flush()}const t=p.replace(/\n/g,' ');if(!t)return;para.push(s.n?`<mark class="anc" data-id="${s.n.id}">${esc(t)}</mark><span class="id ${pre(s.n)}" data-id="${s.n.id}">${s.n.id}</span>`:esc(t))})}
 flush();document.getElementById('text').innerHTML=html.join('');
+const P=G.paper||{};document.getElementById('meta').innerHTML=`${P.authors?`<span><b>${esc(P.authors.map(a=>a.name).join(', '))}</b></span>`:''}${P.doi?`<span><a href="https://doi.org/${esc(P.doi)}" target="_blank">doi:${esc(P.doi)}</a></span>`:''}<span>${G.nodes.length} nodes · ${G.edges.length} edges</span>${G.source?`<span>${esc(G.source)}</span>`:''}`;
+const toc=document.getElementById('toc');document.querySelectorAll('#article .text h2').forEach((h,i)=>{h.id='sec'+i;toc.add(new Option(h.textContent,h.id))});toc.onchange=()=>{const h=document.getElementById(toc.value);narrow()?h.scrollIntoView({block:'start'}):paneScroll(document.getElementById('article'),h,.04)};
 function verifyBadges(id){const bad=Object.entries(V.nodes?.[id]||{}).filter(([,r])=>!r.ok);return bad.length?`<div class="verify">${bad.map(([c,r])=>`<span class="bad" title="${esc(r.note)}">${c} ✗ ${esc(r.note)}</span>`).join('')}</div>`:''}
 function detail(n){const rel=(list,dir)=>(list||[]).filter(e=>['supports','opposes','addresses','observationStatement','request_target','grounds','follows'].includes(e.relation)).filter(e=>!(dir==='in'&&n.type==='Claim'&&['supports','opposes','request_target'].includes(e.relation))&&!(dir==='out'&&n.type==='Study'&&e.relation==='follows')&&!(dir==='out'&&n.type==='Request'&&e.relation==='request_target')&&!(n.type==='SourceDocument')&&!(e.relation==='describesActivity')&&!(dir==='out'&&n.type==='Claim'&&e.relation==='supports'&&N[e.object].type==='Claim'&&!N[e.object].subtype)).map(e=>{const a=N[e.subject],b=N[e.object],o=dir==='out'?b:a;return `<li>${chip(a,true)} <span class="rel">${e.relation}</span> ${chip(b,true)} ${esc(o.description||o.text)}</li>`}).join('');
  return `<div class="m">${chip(n,true)}${n.study?` · ${esc(studyOf(n))}`:''}${n.panel?` · ${esc(n.panel)}`:''}${prov(n)}</div>${n.type==='SourceDocument'?`<p class="sum">${esc(n.description)}</p>`:`<h3>${esc(n.text)}</h3>`}${n.notes?`<p class="q">${esc(n.notes)}</p>`:''}
- ${n.text.includes(n.anchor)?'':`<p class="q">“${esc(n.anchor)}”</p>`}<p class="m"><a href="#" data-article="${n.id}">article</a>${n.doi?` · <a href="${n.doi.startsWith("http")?esc(n.doi):"https://doi.org/"+esc(n.doi)}" target="_blank">doi:${esc(n.doi.replace(/^https?:\/\/doi\.org\//,""))} ↗</a>`:''}${n.figure?` · <a href="${esc(n.figure.page)}" target="_blank">${esc(n.panel)} ↗</a>`:''}</p>${n.figure?`<img src="${thumb(n.figure.thumbnail)}" alt="${esc(n.panel)}">`:''}${verifyBadges(n.id)}<ul>${rel(outs[n.id],'out')}${rel(ins[n.id],'in')}</ul>`}
+ <div class="figrow"><div>${n.text.includes(n.anchor)?'':`<p class="q">“${esc(n.anchor)}”</p>`}<p class="m"><a href="#" data-article="${n.id}">article</a>${n.doi?` · <a href="${n.doi.startsWith("http")?esc(n.doi):"https://doi.org/"+esc(n.doi)}" target="_blank">doi:${esc(n.doi.replace(/^https?:\/\/doi\.org\//,""))} ↗</a>`:''}${n.figure?` · <a href="${esc(n.figure.page)}" target="_blank">${esc(n.panel)} ↗</a>`:''}</p></div>${n.figure?`<a href="${esc(n.figure.page)}" target="_blank"><img src="${thumb(n.figure.thumbnail)}" alt="${esc(n.panel)}"></a>`:''}</div>${verifyBadges(n.id)}<ul>${rel(outs[n.id],'out')}${rel(ins[n.id],'in')}</ul>`}
 function closeDrawer(d){const r=d.previousElementSibling;r?.classList.remove('open');d.remove()}
 function openDrawer(id){const t=document.querySelector(`#tree .t[data-open="${id}"],#tree [data-open="${id}"]`);if(!t)return false;const row=t.closest('.row')||t.closest('.qb');
  let d=row.nextElementSibling;if(d&&d.classList.contains('drawer')&&d.dataset.for===id)return d;
