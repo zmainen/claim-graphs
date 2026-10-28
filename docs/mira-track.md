@@ -147,7 +147,9 @@ server, no outside requests: `--embed-figures` inlines every figure in the graph
 table (not only those on evidence nodes; the artifact frame blocks eLife's image host) and
 copies them to `fig/` beside the page as a fallback. Do not publish `fig/` with the artifact:
 sidecar files make the export a zip instead of one HTML file, and the embedded images suffice.
-Keep the JSON: it is the
+Version the graph: the builder sets `version` and `date` on the JSON (and the JSON-LD stamps);
+the page shows them in the masthead and the About page; tag the corpus commit
+(`gadeke-mira-v1.0`, 2026-10-28, is what eLife received). Keep the JSON: it is the
 form the Pathways prototype loads; the JSON-LD is for MIRA. Every chip shows its node's full
 statement on hover; edge lines in a drawer are chip triples only.
 

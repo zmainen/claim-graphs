@@ -182,7 +182,7 @@ const html=[];let para=[];const flush=()=>{if(!para.length)return;const h=para.j
  html.push(body);para=[]};
 for(const s of segs){const parts=s.t.split('\n\n');parts.forEach((p,i)=>{if(i>0){flush()}const t=p.replace(/\n/g,' ');if(!t)return;para.push(s.n?`<mark class="anc" data-id="${s.n.id}">${esc(t)}</mark><span class="id ${pre(s.n)}" data-id="${s.n.id}">${s.n.id}</span>`:esc(t))})}
 flush();document.getElementById('text').innerHTML=html.join('');
-const P=G.paper||{};document.getElementById('meta').innerHTML=`${P.authors?`<span><b>${esc(P.authors.map(a=>a.name).join(', '))}</b></span>`:''}${P.doi?`<span><a href="https://doi.org/${esc(P.doi)}" target="_blank">doi:${esc(P.doi)}</a></span>`:''}<span>${G.nodes.length} nodes · ${G.edges.length} edges</span>`;
+const P=G.paper||{};document.getElementById('meta').innerHTML=`${P.authors?`<span><b>${esc(P.authors.map(a=>a.name).join(', '))}</b></span>`:''}${P.doi?`<span><a href="https://doi.org/${esc(P.doi)}" target="_blank">doi:${esc(P.doi)}</a></span>`:''}<span>${G.nodes.length} nodes · ${G.edges.length} edges</span>${G.version?`<span>graph v${esc(G.version)} · ${esc(G.date||'')}</span>`:''}`;
 const toc=document.getElementById('toc');const MAJOR=/^(abstract|introduction|results|discussion|materials and methods|methods|references|elife assessment|elife digest)$/i;const heads=[...document.querySelectorAll('#article .text h2')];
 heads.forEach((h,i)=>{h.id='sec'+i;toc.add(new Option(h.textContent,h.id))});toc.onchange=()=>{const h=document.getElementById(toc.value);narrow()?h.scrollIntoView({block:'start'}):paneScroll(document.getElementById('article'),h,.04)};
 const majors=heads.filter(h=>MAJOR.test(h.textContent.trim()));const sec=document.getElementById('sections');
@@ -250,7 +250,7 @@ document.getElementById('jsonpre').textContent=JSON.stringify(G,null,1);
 if(D.jsonld)document.getElementById('jsonldpre').textContent=D.jsonld;
 const ST=D.stamp||{};const cnt=t=>G.nodes.filter(n=>n.type===t).length,sub=t=>G.nodes.filter(n=>n.subtype===t).length;
 document.getElementById('about').innerHTML=`<div class="about"><h2>About this graph</h2>
-<p>A MIRA claims graph of <i>${esc(G.paper?.title||'')}</i> (eLife ${esc(G.paper?.doi||'')}, Reviewed Preprint version 2). Built with Claude (Anthropic) and reviewed by Zachary F. Mainen, Champalimaud Research, October 2026.</p>
+<p>A MIRA claims graph of <i>${esc(G.paper?.title||'')}</i> (eLife ${esc(G.paper?.doi||'')}, Reviewed Preprint version 2). Version ${esc(G.version||'')}, ${esc(G.date||'')}. Built with Claude (Anthropic) and reviewed by Zachary F. Mainen, Champalimaud Research.</p>
 <h3>What is in it</h3>
 <ul><li>Questions, claims, evidence, studies, protocols, requests and source documents, using MIRA's node types and relations.</li>
 <li>Every node is anchored to a verbatim passage of the article text. The main findings are also anchored in the abstract.</li>
