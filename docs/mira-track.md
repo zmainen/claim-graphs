@@ -140,9 +140,9 @@ prototype, the JSON-LD alongside it for Paul.
 
 The handoff itself is the page: `mira_viewer.py ... --embed-figures --deliver --out <paper>-hand.deliver.html`
 builds the one eLife receives (Gädeke: https://claude.ai/artifact/5AFpgCyeGQXKbCZzAUe1M6). It
-drops the comparison and the verification table, and its Data item opens About this graph
-(facts only, in four parts: what it is and who built and reviewed it; what is in it; what is new,
-the four subclasses one line each; the checks; the two files), the cleaned working-graph JSON
+drops the comparison and the verification table; its toolbar offers About this graph
+(facts only: what it is and who built and reviewed it; what is in it; a Contents table of counts
+by kind and subtype; what is new, the four subclasses one line each; the checks; the two files), the cleaned working-graph JSON
 (written beside it as `.deliver.graph.json`, no `key`, with a `fields` block naming the extra
 fields) and the MIRA JSON-LD, read from `<paper>-hand.mira.jsonld`. One self-contained file, no
 server, no outside requests: `--embed-figures` inlines every figure in the graph's `figures`
