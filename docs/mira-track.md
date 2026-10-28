@@ -148,8 +148,11 @@ table (not only those on evidence nodes; the artifact frame blocks eLife's image
 copies them to `fig/` beside the page as a fallback. Do not publish `fig/` with the artifact:
 sidecar files make the export a zip instead of one HTML file, and the embedded images suffice.
 Version the graph: the builder sets `version` and `date` on the JSON (and the JSON-LD stamps);
-the page shows them in the masthead and the About page; tag the corpus commit
-(`gadeke-mira-v1.0`, 2026-10-28, is what eLife received). Keep the JSON: it is the
+the page shows them in the masthead and the About page. Every change that reaches the delivered
+page is its own version (major.minor.patch: schema or subclasses / nodes or edges / wording,
+summaries, anchors or the page), committed on its own, recorded in the run's `CHANGELOG.md`, and
+tagged `<paper>-mira-v<version>` on the corpus (`gadeke-mira-v1.0.0`, 2026-10-28, is what eLife
+received). Bump, rebuild, verify, republish, commit, tag: in that order. Keep the JSON: it is the
 form the Pathways prototype loads; the JSON-LD is for MIRA. Every chip shows its node's full
 statement on hover; edge lines in a drawer are chip triples only.
 
