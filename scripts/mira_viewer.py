@@ -24,15 +24,15 @@ def embed_figures(g, cache):
     Kept outside the graph so the JSON tab and the delivered file stay URLs."""
     os.makedirs(cache, exist_ok=True)
     seen = {}
-    for n in g["nodes"]:
-        f = n.get("figure")
+    figs = [n.get("figure") for n in g["nodes"]] + list((g.get("figures") or {}).values())
+    for f in figs:
         if not f or not f.get("thumbnail"): continue
         url = f["thumbnail"]
         if url not in seen:
             path = os.path.join(cache, hashlib.sha1(url.encode()).hexdigest() + ".jpg")
             if not os.path.exists(path):
                 with urllib.request.urlopen(url, timeout=60) as r: open(path, "wb").write(r.read())
-            seen[url] = "data:image/jpeg;base64," + base64.b64encode(open(path, "rb").read()).decode()
+            seen[url] = {"data": "data:image/jpeg;base64," + base64.b64encode(open(path, "rb").read()).decode(), "file": "fig/" + os.path.basename(path)}
     print(f"embedded {len(seen)} figure thumbnails"); return seen
 
 def main():
@@ -45,6 +45,9 @@ def main():
     v = json.load(open(vpath)) if os.path.exists(vpath) else {"nodes": {}, "edges": [], "summary": {}}
     title = g.get("paper", {}).get("title", "MIRA graph")
     thumbs = embed_figures(g, os.path.join(os.path.dirname(os.path.abspath(gpath)), ".figcache")) if "--embed-figures" in a else {}
+    if thumbs:   # the same files beside the page, for hosts that block data: images
+        import shutil; fd = os.path.join(os.path.dirname(os.path.abspath(out)), "fig"); os.makedirs(fd, exist_ok=True)
+        for t in thumbs.values(): shutil.copy(os.path.join(os.path.dirname(os.path.abspath(gpath)), ".figcache", os.path.basename(t["file"])), fd)
     cmp = None
     if "--compare" in a:
         i = a.index("--compare")
@@ -158,7 +161,7 @@ const isCitedDoc=n=>n.type==='SourceDocument'&&/^C\d/.test(n.id);
 const pre=n=>isCitedDoc(n)?'C':n.subtype==='Hypothesis'?'H':n.subtype==='Alternative'?'A':n.subtype==='Check'?'K':n.type==='Claim'?'F':n.type==='Evidence'?'E':n.type==='Question'?'Q':n.type==='Request'?'R':n.type==='Study'?'S':n.type==='Protocol'?'P':'D';
 const chip=(n,ref=false)=>`<span class="id ${pre(n)}${n.subtype==='Cited'?' cited':''}${ref?' ref':''}" data-go="${n.id}">${n.id}</span>`;
 const outs={},ins={};for(const e of G.edges){(outs[e.subject]??=[]).push(e);(ins[e.object]??=[]).push(e)}
-const thumb=u=>D.thumbs?.[u]||u;const TN=C?Object.fromEntries(C.graph.nodes.map(n=>[n.id,n])):{};const O2T=C?C.align.ours_to_theirs:null;
+const thumb=u=>D.thumbs?.[u]?.data||u;const thumbAlt=u=>D.thumbs?.[u]?.file||'';const IMG=(u,alt,cls='')=>`<img ${cls?`class="${cls}" `:''}src="${thumb(u)}" data-alt="${thumbAlt(u)}" onerror="if(this.dataset.alt&&!this.dataset.tried){this.dataset.tried=1;this.src=this.dataset.alt}" alt="${alt}">`;const TN=C?Object.fromEntries(C.graph.nodes.map(n=>[n.id,n])):{};const O2T=C?C.align.ours_to_theirs:null;
 const prov=n=>!C?'':O2T[n.id]?`<span class="prov" title="${esc(C.label)}: ${esc(O2T[n.id].map(t=>TN[t].text).join('\n'))}">= ${O2T[n.id].join(', ')}</span>`:['Evidence','SourceDocument'].includes(n.type)?'':`<span class="prov new">new</span>`;
 const studyOf=n=>n.study?N[n.study]?.text.split(':')[0]||n.study:'';
 // tabs
@@ -172,7 +175,7 @@ let segs=[{t:T}];
 for(const {n,a} of anchored){const out=[];for(const s of segs){if(s.n){out.push(s);continue}let i=s.t.indexOf(a);if(i<0){out.push(s);continue}out.push({t:s.t.slice(0,i)});out.push({t:a,n});out.push({t:s.t.slice(i+a.length)})}segs=out.filter(s=>s.t.length)}
 const html=[];let para=[];const flush=()=>{if(!para.length)return;const h=para.join('');const ids=[...new Set([...h.matchAll(/data-id="([^"]+)"/g)].map(m=>m[1]))];
  const fm=h.match(/^\[(Figure \d+)[:.]?\]/);const fg=fm&&Object.values(G.figures||{}).find(f=>new RegExp('^'+fm[1]+'[A-Z]?$').test(f.label));
- const body=h.startsWith('## ')?`<h2>${h.slice(3)}</h2>`:fg?`<figure class="fig"><a href="${esc(fg.page)}" target="_blank"><img src="${thumb(fg.thumbnail)}" alt="${esc(fm[1])}"></a><figcaption>${esc(fm[1])} · <a href="${esc(fg.page)}" target="_blank">on eLife ↗</a></figcaption></figure>`:h.startsWith('[Figure')||h.startsWith('[Table')?`<p class="fig">${h}</p>`:`<p>${h}</p>`;
+ const body=h.startsWith('## ')?`<h2>${h.slice(3)}</h2>`:fg?`<figure class="fig"><a href="${esc(fg.page)}" target="_blank">${IMG(fg.thumbnail,esc(fm[1]))}</a><figcaption>${esc(fm[1])} · <a href="${esc(fg.page)}" target="_blank">on eLife ↗</a></figcaption></figure>`:h.startsWith('[Figure')||h.startsWith('[Table')?`<p class="fig">${h}</p>`:`<p>${h}</p>`;
  html.push(body);para=[]};
 for(const s of segs){const parts=s.t.split('\n\n');parts.forEach((p,i)=>{if(i>0){flush()}const t=p.replace(/\n/g,' ');if(!t)return;para.push(s.n?`<mark class="anc" data-id="${s.n.id}">${esc(t)}</mark><span class="id ${pre(s.n)}" data-id="${s.n.id}">${s.n.id}</span>`:esc(t))})}
 flush();document.getElementById('text').innerHTML=html.join('');
@@ -190,7 +193,7 @@ const artPane=document.getElementById('article');artPane.addEventListener('scrol
 function verifyBadges(id){const bad=Object.entries(V.nodes?.[id]||{}).filter(([,r])=>!r.ok);return bad.length?`<div class="verify">${bad.map(([c,r])=>`<span class="bad" title="${esc(r.note)}">${c} ✗ ${esc(r.note)}</span>`).join('')}</div>`:''}
 function detail(n){const rel=(list,dir)=>(list||[]).filter(e=>['supports','opposes','addresses','observationStatement','request_target','grounds','follows'].includes(e.relation)).filter(e=>!(dir==='in'&&n.type==='Claim'&&['supports','opposes','request_target'].includes(e.relation))&&!(dir==='out'&&n.type==='Study'&&e.relation==='follows')&&!(dir==='out'&&n.type==='Request'&&e.relation==='request_target')&&!(n.type==='SourceDocument')&&!(e.relation==='describesActivity')&&!(dir==='out'&&n.type==='Claim'&&e.relation==='supports'&&N[e.object].type==='Claim'&&!N[e.object].subtype)).map(e=>{const a=N[e.subject],b=N[e.object],o=dir==='out'?b:a;return `<li>${chip(a,true)} <span class="rel">${e.relation}</span> ${chip(b,true)} ${esc(o.description||o.text)}</li>`}).join('');
  return `<div class="m">${chip(n,true)}${n.study?` · ${esc(studyOf(n))}`:''}${n.panel?` · ${esc(n.panel)}`:''}${prov(n)}</div>${n.type==='SourceDocument'?`<p class="sum">${esc(n.description)}</p>`:`<h3>${esc(n.text)}</h3>`}${n.notes?`<p class="q">${esc(n.notes)}</p>`:''}
- <div class="figrow"><div>${n.text.includes(n.anchor)?'':`<p class="q">“${esc(n.anchor)}”</p>`}<p class="m">${n.doi?`<a href="${n.doi.startsWith("http")?esc(n.doi):"https://doi.org/"+esc(n.doi)}" target="_blank">doi:${esc(n.doi.replace(/^https?:\/\/doi\.org\//,""))} ↗</a>`:''}${n.figure?`${n.doi?' · ':''}<a href="${esc(n.figure.page)}" target="_blank">${esc(n.panel)} ↗</a>`:''}</p></div>${n.figure?`<a href="${esc(n.figure.page)}" target="_blank"><img src="${thumb(n.figure.thumbnail)}" alt="${esc(n.panel)}"></a>`:''}</div>${verifyBadges(n.id)}<ul>${rel(outs[n.id],'out')}${rel(ins[n.id],'in')}</ul>`}
+ <div class="figrow"><div>${n.text.includes(n.anchor)?'':`<p class="q">“${esc(n.anchor)}”</p>`}<p class="m">${n.doi?`<a href="${n.doi.startsWith("http")?esc(n.doi):"https://doi.org/"+esc(n.doi)}" target="_blank">doi:${esc(n.doi.replace(/^https?:\/\/doi\.org\//,""))} ↗</a>`:''}${n.figure?`${n.doi?' · ':''}<a href="${esc(n.figure.page)}" target="_blank">${esc(n.panel)} ↗</a>`:''}</p></div>${n.figure?`<a href="${esc(n.figure.page)}" target="_blank">${IMG(n.figure.thumbnail,esc(n.panel))}</a>`:''}</div>${verifyBadges(n.id)}<ul>${rel(outs[n.id],'out')}${rel(ins[n.id],'in')}</ul>`}
 function closeDrawer(d){const r=d.previousElementSibling;r?.classList.remove('open');d.remove()}
 function openDrawer(id){const t=document.querySelector(`#tree .t[data-open="${id}"],#tree [data-open="${id}"]`);if(!t)return false;const row=t.closest('.row')||t.closest('.qb');
  let d=row.nextElementSibling;if(d&&d.classList.contains('drawer')&&d.dataset.for===id)return d;
@@ -244,16 +247,23 @@ document.getElementById('jsonpre').textContent=JSON.stringify(G,null,1);
 if(D.jsonld)document.getElementById('jsonldpre').textContent=D.jsonld;
 const ST=D.stamp||{};const cnt=t=>G.nodes.filter(n=>n.type===t).length,sub=t=>G.nodes.filter(n=>n.subtype===t).length;
 document.getElementById('about').innerHTML=`<div class="about"><h2>About this graph</h2>
-<p>A MIRA graph of <i>${esc(G.paper?.title||'')}</i> (eLife ${esc(G.paper?.doi||'')}), built by hand from the text of the Reviewed Preprint as eLife Pathways serves it, so that every node docks to a verbatim passage of that text.</p>
-<p>It holds ${cnt('Question')} questions, ${cnt('Claim')} claims (${sub('Hypothesis')} hypotheses the authors test, ${cnt('Claim')-sub('Hypothesis')-sub('Alternative')} findings, ${sub('Alternative')} alternatives the paper raises and argues against), ${cnt('Evidence')} pieces of evidence (${sub('Check')} of them checks of the method, ${sub('Cited')} taken from cited work), ${cnt('Study')} studies, ${cnt('Protocol')} protocols, ${cnt('Request')} requests for future work and ${cnt('SourceDocument')} source documents.</p>
-<h3>What is MIRA's and what is ours</h3>
-<p>Node types and relations are MIRA's. Four subclasses are declared with MIRA's own <code>NodeSchema</code> mechanism, each <code>subClassOf</code> a MIRA type, so a MIRA tool that does not know them still reads valid Claims and Evidence: <b>Hypothesis</b> and <b>Alternative</b> under Claim, <b>Check</b> and <b>Cited</b> under Evidence. They exist so a reader can see what the authors set out to test, what rivals they ruled out and with which result, which measurements defend the method rather than argue for a hypothesis, and which findings are borrowed from other papers.</p>
-<p>Beyond the extractor's fields each node carries a plain <code>description</code> (the summary shown in the tree), an <code>anchor</code> (verbatim in the text), and where relevant <code>panel</code>, <code>study</code>, <code>figure</code> and <code>notes</code>; the <code>fields</code> block in the JSON lists them.</p>
-<h3>How it was checked</h3>
-<p>${ST.passed??G.nodes.length} of ${ST.nodes??G.nodes.length} nodes pass every check: ids and types well formed; every question, claim and request summarised in one or two plain sentences; every anchor character-for-character in ${(ST.text_chars||0).toLocaleString()} characters of the article text; every piece of evidence grounded in a study or a cited source and naming its panel; every edge one of MIRA's relations between legal endpoint types; every claim reaching a question and every piece of evidence arguing for or against something.</p>
-<h3>How to read the page</h3>
-<p>The article is on the left with each anchored passage underlined and tagged by its id. Click a passage, or a row on the right, to open the node: its statement, the quote, its figure and what it supports or opposes. Evidence sits inside the claim it bears on; cited findings are marked with a dashed chip.</p>
-<p class="foot">Zach Mainen with Claude · Champalimaud Research · ${new Date().toISOString().slice(0,10)}</p></div>`;
+<p>A MIRA claims graph of <i>${esc(G.paper?.title||'')}</i> (eLife ${esc(G.paper?.doi||'')}, Reviewed Preprint version 2). Built with Claude (Anthropic) and reviewed by Zachary F. Mainen, Champalimaud Research, October 2026.</p>
+<h3>What is in it</h3>
+<ul><li>Questions, claims, evidence, studies, protocols, requests and source documents, using MIRA's node types and relations.</li>
+<li>Every node is anchored to a verbatim passage of the article text. The main findings are also anchored in the abstract.</li>
+<li>Every question, claim and request has a summary of one or two sentences.</li>
+<li>Evidence names its study and its figure panel, table or section. Every panel of Figures 1–5, Table 1 and Supplementary Figure 2 is covered.</li>
+<li>Cited findings carry the reference and DOI of the work they come from.</li></ul>
+<h3>What is new</h3>
+<p>Four subclasses, declared with MIRA's <code>NodeSchema</code> mechanism so that other MIRA tools read them as ordinary claims and evidence:</p>
+<ul><li><b>Hypothesis</b> — a claim the authors set out to test.</li>
+<li><b>Alternative</b> — a rival explanation the paper raises; the evidence that argues against it is attached.</li>
+<li><b>Check</b> — evidence that defends the method: a manipulation check, positive control or assumption test.</li>
+<li><b>Cited</b> — a finding taken from another publication.</li></ul>
+<h3>Checks</h3>
+<p>All anchors are verbatim in the article text. All edges use MIRA relations between legal endpoint types. Every claim reaches a question; every piece of evidence supports or opposes a claim. The JSON-LD validates against MIRA's shapes, apart from two shape issues reported upstream.</p>
+<h3>Files</h3>
+<p><b>JSON</b>: the working-graph form the Pathways prototype loads. <b>JSON-LD</b>: the MIRA form, with the subclass declarations.</p></div>`;
 // ── compare ─────────────────────────────────────────────────────────────────────────────
 if(C){document.getElementById('cmptab').hidden=false;document.getElementById('cmptab').textContent=`Compared with the ${C.label}`;
  const T2O=C.align.theirs_to_ours;const tcell=n=>`<div><code>${n.id}</code> ${esc(n.text)}</div>`;const ocell=n=>`<div>${chip(n)} ${esc(line(n))}</div>`;
