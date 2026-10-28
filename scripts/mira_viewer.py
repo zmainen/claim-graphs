@@ -113,6 +113,7 @@ main{padding-block:1.2rem 5rem}main:not(.on){display:none !important}main.on{dis
 .id.Q{background:var(--Q)}.id.H{background:var(--H)}.id.F{background:var(--F)}.id.A{background:var(--A)}.id.E{background:var(--E)}.id.K{background:var(--K)}.id.R{background:var(--R)}.id.C{background:var(--C)}
 .id.cited{background:none !important;color:var(--E);border:1px dashed var(--E)}
 .id.ref{background:none !important;border:1px solid currentColor;opacity:.9}.id.ref.Q{color:var(--Q)}.id.ref.H{color:var(--H)}.id.ref.F{color:var(--F)}.id.ref.A{color:var(--A)}.id.ref.E{color:var(--E)}.id.ref.K{color:var(--K)}.id.ref.R{color:var(--R)}.id.ref.C,.id.ref.S,.id.ref.P,.id.ref.D{color:var(--ink-3)}
+#hover{position:fixed;z-index:9;max-width:40ch;background:var(--ink);color:var(--paper);font-size:.84rem;line-height:1.45;padding:.5rem .7rem;border-radius:6px;pointer-events:none;box-shadow:0 4px 16px rgba(0,0,0,.18)}#hover[hidden]{display:none}#hover .id{margin-right:.4rem}
 .prov{font:400 .72rem var(--mono);color:var(--ink-3);margin-left:.45rem;white-space:nowrap}.prov.new{color:var(--F)}
 /* article */
 .toc{display:none}
@@ -136,7 +137,7 @@ mark.anc.on{background:color-mix(in srgb,var(--cur) 12%,transparent);border-bott
 .drawer .m{color:var(--ink-3);font-size:.78rem}.drawer p.m:empty{display:none}
 .drawer h3{margin:0;font:500 1rem/1.45 var(--sans);text-wrap:pretty}.drawer .sum{margin:0}.drawer .q{color:var(--ink-2);font-style:italic;margin:0}
 .drawer .figrow{display:grid;grid-template-columns:1fr auto;gap:.8rem;align-items:start}.drawer img{max-width:240px;border:1px solid var(--rule);background:#fff;border-radius:6px}
-.drawer ul{margin:0;padding:0;list-style:none;display:grid;gap:.2rem}.drawer li{font-size:.86rem}.rel{font:500 .7rem var(--mono);color:var(--ink-3);margin:0 .2rem}
+.drawer ul{margin:0;padding:0;list-style:none;display:flex;flex-wrap:wrap;gap:.3rem 1.2rem}.drawer li{font-size:.86rem}.rel{font:500 .7rem var(--mono);color:var(--ink-3);margin:0 .2rem}
 .drawer .grp{font:500 .64rem var(--sans);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);margin-top:.5rem}.drawer .row{background:var(--paper);margin-left:0}.drawer .row:hover{background:var(--paper)}
 .drawer .drawer{margin-left:0 !important;background:var(--paper);border:1px solid var(--rule)}
 .verify{display:flex;flex-wrap:wrap;gap:.3rem}.verify span{font-size:.72rem;padding:.05rem .4rem;border-radius:4px;background:var(--paper);border:1px solid var(--rule)}.verify .bad{color:var(--A);border-color:var(--A)}
@@ -152,6 +153,7 @@ mark.anc.on{background:color-mix(in srgb,var(--cur) 12%,transparent);border-bott
 <div class="tabs" role="tablist"><button role="tab" data-tab="article" id="arttab">Article</button><button role="tab" data-tab="tree" aria-selected="true">Claims</button><button role="tab" data-tab="checks">Verification</button><button role="tab" data-tab="compare" id="cmptab" hidden>Compared</button><button role="tab" data-tab="json">JSON</button><button id="collapse" title="close every open node">collapse</button></div></header>
 <div class="split"><nav class="sections" id="sections"></nav><section id="article" class="pane"><nav class="toc">section <select id="toc"></select></nav><div class="text" id="text"></div></section>
 <section class="pane right"><main id="tree" class="on"></main><main id="checks"></main><main id="compare"></main><main id="json"><pre id="jsonpre"></pre></main><main id="jsonld"><pre id="jsonldpre"></pre></main><main id="about"></main></section></div>
+<div id="hover" hidden></div>
 <script id="data" type="application/json">__PAYLOAD__</script>
 <script>
 const D=JSON.parse(document.getElementById('data').textContent);const G=D.graph,T=D.text,V=D.verification,C=D.compare;
@@ -159,7 +161,7 @@ const N=Object.fromEntries(G.nodes.map(n=>[n.id,n]));const esc=s=>String(s??'').
 const WORD={Q:'question',H:'hypothesis',F:'finding',A:'alternative',E:'evidence',K:'check',C:'cited work',R:'request',S:'study',P:'protocol',D:'this paper'};
 const isCitedDoc=n=>n.type==='SourceDocument'&&/^C\d/.test(n.id);
 const pre=n=>isCitedDoc(n)?'C':n.subtype==='Hypothesis'?'H':n.subtype==='Alternative'?'A':n.subtype==='Check'?'K':n.type==='Claim'?'F':n.type==='Evidence'?'E':n.type==='Question'?'Q':n.type==='Request'?'R':n.type==='Study'?'S':n.type==='Protocol'?'P':'D';
-const chip=(n,ref=false)=>`<span class="id ${pre(n)}${n.subtype==='Cited'?' cited':''}${ref?' ref':''}" data-go="${n.id}" title="${esc(n.text)}">${n.id}</span>`;
+const chip=(n,ref=false)=>`<span class="id ${pre(n)}${n.subtype==='Cited'?' cited':''}${ref?' ref':''}" data-go="${n.id}">${n.id}</span>`;
 const outs={},ins={};for(const e of G.edges){(outs[e.subject]??=[]).push(e);(ins[e.object]??=[]).push(e)}
 const thumb=u=>D.thumbs?.[u]?.data||u;const thumbAlt=u=>D.thumbs?.[u]?.file||'';const IMG=(u,alt,cls='')=>`<img ${cls?`class="${cls}" `:''}src="${thumb(u)}" data-alt="${thumbAlt(u)}" onerror="if(this.dataset.alt&&!this.dataset.tried){this.dataset.tried=1;this.src=this.dataset.alt}" alt="${alt}">`;const TN=C?Object.fromEntries(C.graph.nodes.map(n=>[n.id,n])):{};const O2T=C?C.align.ours_to_theirs:null;
 const prov=n=>!C?'':O2T[n.id]?`<span class="prov" title="${esc(C.label)}: ${esc(O2T[n.id].map(t=>TN[t].text).join('\n'))}">= ${O2T[n.id].join(', ')}</span>`:['Evidence','SourceDocument'].includes(n.type)?'':`<span class="prov new">new</span>`;
@@ -169,6 +171,7 @@ const tab=name=>{document.querySelectorAll('.tabs [data-tab]').forEach(x=>x.setA
 document.querySelectorAll('.tabs [data-tab]').forEach(b=>b.onclick=()=>tab(b.dataset.tab));
 document.getElementById('collapse').onclick=()=>{document.querySelectorAll('.drawer').forEach(d=>d.remove());document.querySelectorAll('.row.open,.row.cur').forEach(r=>r.classList.remove('open','cur'));document.querySelectorAll('mark.anc.on').forEach(m=>m.classList.remove('on'))};
 const narrow=()=>matchMedia('(max-width:900px)').matches;
+const HV=document.getElementById('hover');document.body.addEventListener('mouseover',e=>{const c=e.target.closest('.id[data-go]');if(!c||!N[c.dataset.go]){HV.hidden=true;return}const n=N[c.dataset.go];HV.innerHTML=`${chip(n)}${esc(n.text)}`;HV.hidden=false;const r=c.getBoundingClientRect();HV.style.left=Math.min(r.left,innerWidth-HV.offsetWidth-12)+'px';HV.style.top=(r.bottom+6+HV.offsetHeight>innerHeight?r.top-HV.offsetHeight-6:r.bottom+6)+'px'});document.body.addEventListener('mouseout',e=>{if(e.target.closest('.id[data-go]'))HV.hidden=true});
 // ── article: mark anchors; margin shows chip + summary ──────────────────────────────────
 const anchored=G.nodes.filter(n=>n.type!=='SourceDocument').flatMap(n=>[n.anchor,...(n.anchors||[])].filter(a=>a&&T.includes(a)).map(a=>({n,a}))).sort((x,y)=>y.a.length-x.a.length);
 let segs=[{t:T}];
@@ -191,7 +194,7 @@ sec.querySelectorAll('[data-tool]').forEach(b=>b.onclick=()=>{tab(b.dataset.tool
 document.getElementById('collapse2').onclick=()=>document.getElementById('collapse').click();
 const artPane=document.getElementById('article');artPane.addEventListener('scroll',()=>{const top=artPane.getBoundingClientRect().top+80;let cur=majors[0];for(const h of majors){if(h.getBoundingClientRect().top<=top)cur=h}sec.querySelectorAll('a[data-sec]').forEach(a=>a.classList.toggle('cur',a.dataset.sec===cur?.id))},{passive:true});
 function verifyBadges(id){const bad=Object.entries(V.nodes?.[id]||{}).filter(([,r])=>!r.ok);return bad.length?`<div class="verify">${bad.map(([c,r])=>`<span class="bad" title="${esc(r.note)}">${c} ✗ ${esc(r.note)}</span>`).join('')}</div>`:''}
-function detail(n){const rel=(list,dir)=>(list||[]).filter(e=>['supports','opposes','addresses','observationStatement','request_target','grounds','follows'].includes(e.relation)).filter(e=>!(dir==='in'&&n.type==='Claim'&&['supports','opposes','request_target'].includes(e.relation))&&!(dir==='out'&&n.type==='Study'&&e.relation==='follows')&&!(dir==='out'&&n.type==='Request'&&e.relation==='request_target')&&!(n.type==='SourceDocument')&&!(e.relation==='describesActivity')&&!(dir==='out'&&n.type==='Claim'&&e.relation==='supports'&&N[e.object].type==='Claim'&&!N[e.object].subtype)).map(e=>{const a=N[e.subject],b=N[e.object],o=dir==='out'?b:a;return `<li>${chip(a,true)} <span class="rel">${e.relation}</span> ${chip(b,true)} ${esc(o.description||o.text)}</li>`}).join('');
+function detail(n){const rel=(list,dir)=>(list||[]).filter(e=>['supports','opposes','addresses','observationStatement','request_target','grounds','follows'].includes(e.relation)).filter(e=>!(dir==='in'&&n.type==='Claim'&&['supports','opposes','request_target'].includes(e.relation))&&!(dir==='out'&&n.type==='Study'&&e.relation==='follows')&&!(dir==='out'&&n.type==='Request'&&e.relation==='request_target')&&!(n.type==='SourceDocument')&&!(e.relation==='describesActivity')&&!(dir==='out'&&n.type==='Claim'&&e.relation==='supports'&&N[e.object].type==='Claim'&&!N[e.object].subtype)).map(e=>{const a=N[e.subject],b=N[e.object],o=dir==='out'?b:a;return `<li>${chip(a,true)} <span class="rel">${e.relation}</span> ${chip(b,true)}</li>`}).join('');
  return `<div class="m">${chip(n,true)}${n.study?` · ${esc(studyOf(n))}`:''}${n.panel?` · ${esc(n.panel)}`:''}${prov(n)}</div>${n.type==='SourceDocument'?`<p class="sum">${esc(n.description)}</p>`:`<h3>${esc(n.text)}</h3>`}${n.notes?`<p class="q">${esc(n.notes)}</p>`:''}
  <div class="figrow"><div>${n.text.includes(n.anchor)?'':`<p class="q">“${esc(n.anchor)}”</p>`}<p class="m">${n.doi?`<a href="${n.doi.startsWith("http")?esc(n.doi):"https://doi.org/"+esc(n.doi)}" target="_blank">doi:${esc(n.doi.replace(/^https?:\/\/doi\.org\//,""))} ↗</a>`:''}${n.figure?`${n.doi?' · ':''}<a href="${esc(n.figure.page)}" target="_blank">${esc(n.panel)} ↗</a>`:''}</p></div>${n.figure?`<a href="${esc(n.figure.page)}" target="_blank">${IMG(n.figure.thumbnail,esc(n.panel))}</a>`:''}</div>${verifyBadges(n.id)}<ul>${rel(outs[n.id],'out')}${rel(ins[n.id],'in')}</ul>`}
 function closeDrawer(d){const r=d.previousElementSibling;r?.classList.remove('open');d.remove()}
