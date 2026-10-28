@@ -137,11 +137,18 @@ nodes may carry extra `anchors`; the extractor-shaped `.graph.json` is what goes
 prototype, the JSON-LD alongside it for Paul.
 
 The handoff itself is the page: `mira_viewer.py ... --embed-figures --deliver --out <paper>-hand.deliver.html`
-builds the one eLife receives. It drops the comparison and the verification table, and its Data
-item opens About this graph (what is MIRA's and what is ours, the audit stamp, how to read the
-page, provenance), the cleaned working-graph JSON (written beside it as `.deliver.graph.json`,
-with a `fields` block naming the extra fields) and the MIRA JSON-LD. One self-contained file,
-no server, no outside requests.
+builds the one eLife receives (Gädeke: https://claude.ai/artifact/5AFpgCyeGQXKbCZzAUe1M6). It
+drops the comparison and the verification table, and its Data item opens About this graph
+(facts only, in four parts: what it is and who built and reviewed it; what is in it; what is new,
+the four subclasses one line each; the checks; the two files), the cleaned working-graph JSON
+(written beside it as `.deliver.graph.json`, no `key`, with a `fields` block naming the extra
+fields) and the MIRA JSON-LD, read from `<paper>-hand.mira.jsonld`. One self-contained file, no
+server, no outside requests: `--embed-figures` inlines every figure in the graph's `figures`
+table (not only those on evidence nodes; the artifact frame blocks eLife's image host) and
+copies them to `fig/` beside the page, which the viewer falls back to if a host refuses embedded
+images. When publishing as an artifact, pass `fig/*.jpg` as its files. Keep the JSON: it is the
+form the Pathways prototype loads; the JSON-LD is for MIRA. Every chip shows its node's full
+statement on hover; edge lines in a drawer are chip triples only.
 
 **6. The record.** `python3 scripts/mira_report.py <paper>` writes
 `runs/<paper>/mira-report/site/` (not committed); publish `index.html` as the artifact page and
@@ -178,7 +185,9 @@ deliberately left out of its base spec. Alternative has no name upstream; that i
 ## What is left
 
 1. Zach's adjudication of the hand-built graph (open judgement calls are listed in its README).
-2. Hand-off to eLife: `gadeke-hand.graph.json` to Lina (prototype), JSON-LD to Paul.
+2. Hand-off to eLife: share the delivery page (one file carrying the reading surface, the
+   cleaned JSON for Lina's prototype and the JSON-LD for Paul); ask whether their loader can
+   take JSON-LD directly, in which case the JSON can go.
 3. The alternatives pass: a precision guard (an `opposes` edge requires that the paper itself
    draws the inference, anchored) and sub-steps for the two construction cases (rivals read
    off a design; rivals read off a model comparison).
