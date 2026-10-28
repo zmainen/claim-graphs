@@ -145,7 +145,7 @@ mark.anc.on{background:color-mix(in srgb,var(--cur) 12%,transparent);border-bott
 #checks{max-width:90ch}#checks table{width:100%;border-collapse:collapse;font-size:.88rem}#checks td,#checks th{text-align:left;vertical-align:top;padding:.3rem .5rem;border-top:1px solid var(--rule)}
 #compare.on{display:block}#compare table{width:100%;border-collapse:collapse;font-size:.86rem;margin:.4rem 0 1.4rem}#compare th,#compare td{vertical-align:top;text-align:left;padding:.35rem .5rem;border-top:1px solid var(--rule);width:33%}#compare th{font-weight:500;color:var(--ink-2)}#compare td>div{margin:.3rem 0}#compare .s{color:var(--ink-3);font-size:.78rem}#compare h2{font:500 1rem var(--sans);margin:1.4rem 0 .2rem}
 #json pre,#jsonld pre{font:.76rem/1.5 var(--mono);white-space:pre-wrap;word-break:break-word}
-.about{max-width:66ch;font-size:.95rem;line-height:1.65}.about h2{font:600 1.25rem var(--sans);margin:0 0 .8rem}.about h3{font:600 1rem var(--sans);margin:1.6rem 0 .4rem}.about code{font:.82rem var(--mono);background:var(--paper-2);padding:0 .25rem;border-radius:3px}.about .foot{color:var(--ink-3);font-size:.82rem;margin-top:2rem}
+.about{max-width:66ch;font-size:.95rem;line-height:1.65}.about h2{font:600 1.25rem var(--sans);margin:0 0 .8rem}.about h3{font:600 1rem var(--sans);margin:1.6rem 0 .4rem}.about code{font:.82rem var(--mono);background:var(--paper-2);padding:0 .25rem;border-radius:3px}.about .foot{color:var(--ink-3);font-size:.82rem;margin-top:2rem}.about table.stats{border-collapse:collapse;font-size:.88rem;margin:.4rem 0}.about table.stats td{padding:.15rem 1.2rem .15rem 0;border-top:1px solid var(--rule)}.about table.stats td:last-child{text-align:right;font-variant-numeric:tabular-nums}
 @media print{body{height:auto;overflow:visible;display:block}.split{display:block}.pane{overflow:visible}nav.sections{display:none}main{display:block !important}#json,#jsonld,#compare,#checks{display:none !important}}
 </style></head><body>
 <header class="top"><h1>__TITLE__</h1><div class="meta" id="meta"></div>
@@ -257,6 +257,12 @@ document.getElementById('about').innerHTML=`<div class="about"><h2>About this gr
 <li>Every question, claim and request has a summary of one or two sentences.</li>
 <li>Evidence names its study and its figure panel, table or section. Every panel of Figures 1–5, Table 1 and Supplementary Figure 2 is covered.</li>
 <li>Cited findings carry the reference and DOI of the work they come from.</li></ul>
+<h3>Contents</h3>
+${(()=>{const S=G.stats;if(!S)return'';const row=(k,v)=>`<tr><td>${k}</td><td>${v}</td></tr>`;return `<table class="stats"><tbody>
+${row('Questions',S.by_type.Question||0)}${row('Claims',S.by_type.Claim||0)}${row('&nbsp;&nbsp;hypotheses',S.claims.hypotheses)}${row('&nbsp;&nbsp;findings',S.claims.findings)}${row('&nbsp;&nbsp;alternatives',S.claims.alternatives)}
+${row('Evidence',S.by_type.Evidence||0)}${row('&nbsp;&nbsp;results',S.evidence.results)}${row('&nbsp;&nbsp;checks',S.evidence.checks)}${row('&nbsp;&nbsp;from cited work',S.evidence.cited)}
+${row('Studies',S.by_type.Study||0)}${row('Protocols',S.by_type.Protocol||0)}${row('Requests',S.by_type.Request||0)}${row('Cited works',S.sources.cited_works)}
+${row('Edges',S.edges)}${Object.entries(S.by_relation).map(([k,v])=>row('&nbsp;&nbsp;'+k,v)).join('')}${row('Figure panels covered',S.figure_panels_covered)}</tbody></table>`})()}
 <h3>What is new</h3>
 <p>Four subclasses, declared with MIRA's <code>NodeSchema</code> mechanism so that other MIRA tools read them as ordinary claims and evidence:</p>
 <ul><li><b>Hypothesis</b> — a claim the authors set out to test.</li>
