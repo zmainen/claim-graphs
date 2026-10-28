@@ -114,8 +114,10 @@ python3 <cg>/scripts/mira_viewer.py <paper>-hand.graph.json <page-text>.txt --co
 ```
 The viewer is one self-contained page in the language of eLife Pathways' prototype
 (https://elifepathways.github.io/ux-prototypes/OXA-MIRA-UX/#/article/105391): a masthead with
-title, authors and DOI; a sticky list of the major sections on the left, with the view buttons
-and the chip key beneath it; the article in the middle with every anchored passage underlined
+title, authors, DOI, version and date; a sticky list of the major sections on the left, with the
+view buttons beneath it and a Contents panel that is both the chip key and the count of every kind
+(claims with their subtypes, evidence with its subtypes, cited works, requests, studies, protocols,
+edges), drawn from the graph's `stats` block; the article in the middle with every anchored passage underlined
 and tagged by its id chip, figures inline at their placeholders; the claims on the right, side by
 side with the text. Nothing switches tabs: clicking a passage opens its node on the right, and
 opening a row highlights and scrolls to its passage on the left. The claims column is a tree per
@@ -151,8 +153,9 @@ Version the graph: the builder sets `version` and `date` on the JSON (and the JS
 the page shows them in the masthead and the About page. Every change that reaches the delivered
 page is its own version (major.minor.patch: schema or subclasses / nodes or edges / wording,
 summaries, anchors or the page), committed on its own, recorded in the run's `CHANGELOG.md`, and
-tagged `<paper>-mira-v<version>` on the corpus (`gadeke-mira-v1.0.0`, 2026-10-28, is what eLife
-received). Bump, rebuild, verify, republish, commit, tag: in that order. Keep the JSON: it is the
+tagged `<paper>-mira-v<version>` on the corpus (`gadeke-mira-v1.0.0`, 2026-10-28, was the first delivered
+version; the builder's `stats` block, the Contents panel and the per-change versions came in 1.0.1
+to 1.0.4 the same day; see the run's `CHANGELOG.md`). Bump, rebuild, verify, republish, commit, tag: in that order. Keep the JSON: it is the
 form the Pathways prototype loads; the JSON-LD is for MIRA. Every chip shows its node's full
 statement on hover; edge lines in a drawer are chip triples only.
 
