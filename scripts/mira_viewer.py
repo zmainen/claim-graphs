@@ -102,7 +102,7 @@ header.top .meta{font-size:.86rem;color:var(--ink-2);display:flex;flex-wrap:wrap
 .pane{overflow-y:auto;min-height:0}
 nav.sections{padding-top:1.4rem;font-size:.86rem;position:sticky;top:0;align-self:start}
 nav.sections a{display:block;color:var(--ink-2);padding:.28rem 0 .28rem .8rem;border-left:2px solid var(--rule);line-height:1.3}nav.sections a.cur{color:var(--ink);border-left-color:var(--ink);font-weight:500}nav.sections a:hover{text-decoration:none;color:var(--ink)}
-nav.sections .key{margin-top:1.6rem;padding-left:.8rem;display:grid;gap:.25rem;font-size:.78rem;color:var(--ink-2)}nav.sections .key div{display:flex;gap:.45rem;align-items:center}
+nav.sections .key{margin-top:1.4rem;margin-left:.8rem;padding:.6rem .7rem;border:1px solid var(--rule);border-radius:8px;display:grid;gap:.2rem;font-size:.78rem;color:var(--ink-2)}nav.sections .key div{display:grid;grid-template-columns:auto 1fr auto;gap:.45rem;align-items:center}nav.sections .key b{font-weight:500;color:var(--ink);font-variant-numeric:tabular-nums}nav.sections .key .kh{display:block;font:500 .66rem var(--sans);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);margin-bottom:.2rem}nav.sections .key .kf{display:block;margin-top:.3rem;padding-top:.3rem;border-top:1px solid var(--rule);color:var(--ink-3);font-size:.72rem}
 nav.sections .tools{margin-top:1.4rem;padding-left:.8rem;display:grid;gap:.3rem}nav.sections details.internal{margin-top:.6rem}nav.sections details.internal summary{cursor:pointer;color:var(--ink-3);font-size:.74rem;letter-spacing:.06em;text-transform:uppercase}nav.sections details.internal button{display:block;width:100%;margin-top:.3rem}nav.sections .tools button{text-align:left;background:none;border:1px solid var(--rule);border-radius:6px;padding:.3rem .6rem;color:var(--ink-2);font-size:.8rem}nav.sections .tools button[aria-selected="true"]{background:var(--ink);color:var(--paper);border-color:var(--ink)}nav.sections .tools button.quiet{border-color:transparent;color:var(--ink-3)}nav.sections .tools button.quiet:hover{border-color:var(--rule)}
 #arttab{display:none}
 @media (max-width:1100px){.split{grid-template-columns:120px minmax(0,1fr) minmax(0,1fr);gap:1.2rem}}
@@ -188,7 +188,9 @@ heads.forEach((h,i)=>{h.id='sec'+i;toc.add(new Option(h.textContent,h.id))});toc
 const majors=heads.filter(h=>MAJOR.test(h.textContent.trim()));const sec=document.getElementById('sections');
 const SHORT={checks:'Verification',compare:'Compared with prototype',json:'JSON',jsonld:'JSON-LD (MIRA)',about:'About this graph'};const VIEWS=D.deliver?['about','json','jsonld']:['checks','compare','json','jsonld','about'];
 sec.innerHTML=majors.map(h=>`<a href="#${h.id}" data-sec="${h.id}">${esc(h.textContent)}</a>`).join('')+`<div class="tools"><button data-tool="tree" aria-selected="true">Claims</button><button id="collapse2" class="quiet">collapse all</button><details class="internal" ${D.deliver?'open':''}><summary>${D.deliver?'data':'internal'}</summary>${VIEWS.map(t=>`<button data-tool="${t}" ${(t==='compare'&&!C)||(t==='jsonld'&&!D.jsonld)?'hidden':''} aria-selected="false">${SHORT[t]}</button>`).join('')}</details></div>
-<div class="key"><div><span class="id Q">Q</span>question</div><div><span class="id H">H</span>hypothesis</div><div><span class="id F">F</span>finding</div><div><span class="id A">A</span>alternative</div><div><span class="id E">E</span>evidence</div><div><span class="id K">K</span>check</div><div><span class="id E cited">E</span>cited finding</div><div><span class="id C">C</span>cited work</div><div><span class="id R">R</span>request</div></div>`;
+${(()=>{const S=G.stats||{},n=(t,sub)=>G.nodes.filter(x=>x.type===t&&(sub===undefined||(x.subtype||null)===sub)).length;
+ const rows=[['Q','question',n('Question')],['H','hypothesis',n('Claim','Hypothesis')],['F','finding',n('Claim',null)],['A','alternative',n('Claim','Alternative')],['E','evidence',n('Evidence',null)],['K','check',n('Evidence','Check')],['E cited','cited finding',n('Evidence','Cited')],['C','cited work',G.nodes.filter(isCitedDoc).length],['R','request',n('Request')]];
+ return `<div class="key"><div class="kh">Contents</div>${rows.map(([c,w,k])=>`<div><span class="id ${c}">${c.split(' ')[0]}</span><span>${w}</span><b>${k}</b></div>`).join('')}<div class="kf">${n('Study')} studies · ${n('Protocol')} protocols · ${S.edges||G.edges.length} edges</div></div>`})()}`;
 sec.querySelectorAll('a[data-sec]').forEach(a=>a.onclick=e=>{e.preventDefault();const h=document.getElementById(a.dataset.sec);narrow()?h.scrollIntoView({block:'start'}):paneScroll(document.getElementById('article'),h,.02)});
 sec.querySelectorAll('[data-tool]').forEach(b=>b.onclick=()=>{tab(b.dataset.tool);sec.querySelectorAll('[data-tool]').forEach(x=>x.setAttribute('aria-selected',x===b))});
 document.getElementById('collapse2').onclick=()=>document.getElementById('collapse').click();
@@ -257,12 +259,6 @@ document.getElementById('about').innerHTML=`<div class="about"><h2>About this gr
 <li>Every question, claim and request has a summary of one or two sentences.</li>
 <li>Evidence names its study and its figure panel, table or section. Every panel of Figures 1–5, Table 1 and Supplementary Figure 2 is covered.</li>
 <li>Cited findings carry the reference and DOI of the work they come from.</li></ul>
-<h3>Contents</h3>
-${(()=>{const S=G.stats;if(!S)return'';const row=(k,v)=>`<tr><td>${k}</td><td>${v}</td></tr>`;return `<table class="stats"><tbody>
-${row('Questions',S.by_type.Question||0)}${row('Claims',S.by_type.Claim||0)}${row('&nbsp;&nbsp;hypotheses',S.claims.hypotheses)}${row('&nbsp;&nbsp;findings',S.claims.findings)}${row('&nbsp;&nbsp;alternatives',S.claims.alternatives)}
-${row('Evidence',S.by_type.Evidence||0)}${row('&nbsp;&nbsp;results',S.evidence.results)}${row('&nbsp;&nbsp;checks',S.evidence.checks)}${row('&nbsp;&nbsp;from cited work',S.evidence.cited)}
-${row('Studies',S.by_type.Study||0)}${row('Protocols',S.by_type.Protocol||0)}${row('Requests',S.by_type.Request||0)}${row('Cited works',S.sources.cited_works)}
-${row('Edges',S.edges)}${Object.entries(S.by_relation).map(([k,v])=>row('&nbsp;&nbsp;'+k,v)).join('')}${row('Figure panels covered',S.figure_panels_covered)}</tbody></table>`})()}
 <h3>What is new</h3>
 <p>Four subclasses, declared with MIRA's <code>NodeSchema</code> mechanism so that other MIRA tools read them as ordinary claims and evidence:</p>
 <ul><li><b>Hypothesis</b> — a claim the authors set out to test.</li>
