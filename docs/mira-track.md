@@ -145,8 +145,9 @@ the four subclasses one line each; the checks; the two files), the cleaned worki
 fields) and the MIRA JSON-LD, read from `<paper>-hand.mira.jsonld`. One self-contained file, no
 server, no outside requests: `--embed-figures` inlines every figure in the graph's `figures`
 table (not only those on evidence nodes; the artifact frame blocks eLife's image host) and
-copies them to `fig/` beside the page, which the viewer falls back to if a host refuses embedded
-images. When publishing as an artifact, pass `fig/*.jpg` as its files. Keep the JSON: it is the
+copies them to `fig/` beside the page as a fallback. Do not publish `fig/` with the artifact:
+sidecar files make the export a zip instead of one HTML file, and the embedded images suffice.
+Keep the JSON: it is the
 form the Pathways prototype loads; the JSON-LD is for MIRA. Every chip shows its node's full
 statement on hover; edge lines in a drawer are chip triples only.
 
