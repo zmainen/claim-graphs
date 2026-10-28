@@ -159,7 +159,7 @@ const N=Object.fromEntries(G.nodes.map(n=>[n.id,n]));const esc=s=>String(s??'').
 const WORD={Q:'question',H:'hypothesis',F:'finding',A:'alternative',E:'evidence',K:'check',C:'cited work',R:'request',S:'study',P:'protocol',D:'this paper'};
 const isCitedDoc=n=>n.type==='SourceDocument'&&/^C\d/.test(n.id);
 const pre=n=>isCitedDoc(n)?'C':n.subtype==='Hypothesis'?'H':n.subtype==='Alternative'?'A':n.subtype==='Check'?'K':n.type==='Claim'?'F':n.type==='Evidence'?'E':n.type==='Question'?'Q':n.type==='Request'?'R':n.type==='Study'?'S':n.type==='Protocol'?'P':'D';
-const chip=(n,ref=false)=>`<span class="id ${pre(n)}${n.subtype==='Cited'?' cited':''}${ref?' ref':''}" data-go="${n.id}">${n.id}</span>`;
+const chip=(n,ref=false)=>`<span class="id ${pre(n)}${n.subtype==='Cited'?' cited':''}${ref?' ref':''}" data-go="${n.id}" title="${esc(n.text)}">${n.id}</span>`;
 const outs={},ins={};for(const e of G.edges){(outs[e.subject]??=[]).push(e);(ins[e.object]??=[]).push(e)}
 const thumb=u=>D.thumbs?.[u]?.data||u;const thumbAlt=u=>D.thumbs?.[u]?.file||'';const IMG=(u,alt,cls='')=>`<img ${cls?`class="${cls}" `:''}src="${thumb(u)}" data-alt="${thumbAlt(u)}" onerror="if(this.dataset.alt&&!this.dataset.tried){this.dataset.tried=1;this.src=this.dataset.alt}" alt="${alt}">`;const TN=C?Object.fromEntries(C.graph.nodes.map(n=>[n.id,n])):{};const O2T=C?C.align.ours_to_theirs:null;
 const prov=n=>!C?'':O2T[n.id]?`<span class="prov" title="${esc(C.label)}: ${esc(O2T[n.id].map(t=>TN[t].text).join('\n'))}">= ${O2T[n.id].join(', ')}</span>`:['Evidence','SourceDocument'].includes(n.type)?'':`<span class="prov new">new</span>`;
