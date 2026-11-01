@@ -57,6 +57,8 @@ different version; anchors meant for their page must come from it:
 python3 scripts/mira_page_text.py 105391 --out $CLAIM_GRAPHS_ROOT/runs/gadeke-2026-guilt-insula/mira-hand
 # → <msid>v<N>-page.txt and figures.json (figure ids, IIIF image URLs, page anchors)
 ```
+The builder reads the text under the run's short name: rename `<msid>v<N>-page.txt` to
+`<short>-v<N>.txt` (Gädeke: `105391v2-page.txt` → `gadeke-v2.txt`, byte-identical).
 
 **1. Baseline: the extractor's call, as it is.**
 
@@ -92,14 +94,20 @@ The reply is a patch (new nodes `a…`/`ae…`, new edges), grammar-checked and 
 paper raises (listed per paper in the script, from reading the paper), questions, hypothesis/
 finding split, per-study evidence, straw rivals. Keyword-based; confirm by eye.
 
-**5. The hand-built reference.** `runs/<paper>/mira-hand/<paper>_hand.py` is both the
+**5. The hand-built reference.** `runs/<paper>/mira-hand/<short>_hand.py` (`<short>` is the first
+author's name, `gadeke`; the files it writes are `<short>-hand.*`) is both the
 specification (every node with statement, plain summary, study, panel, anchor; every edge) and
 the builder, which refuses to emit if an anchor is not verbatim in the page text, an edge breaks
 the grammar, or a panel is unaccounted for. It emits the extractor's working-graph shape (what
 eLife's prototype ingests, with `subtypes`, `coverage` and `figures`) and MIRA JSON-LD with the
-four `NodeSchema` subclasses (Hypothesis, Alternative, Check, Cited). Validate the JSON-LD with `scripts/validate_mira.py` (expect only
-the upstream `sh:in` violations and the closed `prov:Activity` refusal of title/description on
-Study nodes).
+four `NodeSchema` subclasses (Hypothesis, Alternative, Check, Cited); each figure image an
+evidence node names as `observationBase` is declared a `prov:Entity`, as the shape requires.
+Validate the JSON-LD by path, with the corpus as root for `vendor/`:
+`CLAIM_GRAPHS_ROOT=<corpus> python3 scripts/validate_mira.py <path>/<short>-hand.mira.jsonld`.
+Expect only the upstream `sh:in` violations and the closed `prov:Activity` refusal of
+title/description on Study nodes (Gädeke 1.1.1: 51 = 47 + 4; the script exits 1, counting the
+second kind as ours). With a path or a slug the script writes nothing; with no argument it
+rewrites the site's `mira-validation.json`, so do not run it bare against the corpus.
 
 **5b. Verify and view the deliverable.** What eLife asked for (Paul Shannon, 6 Oct) is one graph
 with summaries and anchors they can load into their prototype. The checklist and the review
@@ -107,10 +115,10 @@ surface:
 
 ```bash
 cd $CLAIM_GRAPHS_ROOT/runs/<paper>/mira-hand
-python3 <paper>_hand.py                                   # rebuild; refuses on a non-verbatim anchor
-python3 <cg>/scripts/mira_verify.py <paper>-hand.graph.json <page-text>.txt     # the checklist → .verification.json; exit 1 on any problem
-python3 <cg>/scripts/mira_align.py <paper>-hand.graph.json <other>.graph.json <hand-map>.json --out alignment.json   # counterpart table vs another graph of the same paper
-python3 <cg>/scripts/mira_viewer.py <paper>-hand.graph.json <page-text>.txt --compare <other>.graph.json alignment.json --compare-label "July prototype" --embed-figures   # → <paper>-hand.viewer.html; --embed-figures inlines panel thumbnails (the artifact sandbox blocks eLife's image host), cached in .figcache/
+python3 <short>_hand.py                                   # rebuild; refuses on a non-verbatim anchor
+python3 <cg>/scripts/mira_verify.py <short>-hand.graph.json <page-text>.txt     # the checklist → .verification.json; exit 1 on any problem
+python3 <cg>/scripts/mira_align.py <short>-hand.graph.json <other>.graph.json <hand-map>.json --out alignment.json   # counterpart table vs another graph of the same paper
+python3 <cg>/scripts/mira_viewer.py <short>-hand.graph.json <page-text>.txt --compare <other>.graph.json alignment.json --compare-label "July prototype" --embed-figures   # → <short>-hand.viewer.html; --embed-figures inlines panel thumbnails (the artifact sandbox blocks eLife's image host), cached in .figcache/
 ```
 The viewer is one self-contained page in the language of eLife Pathways' prototype
 (https://elifepathways.github.io/ux-prototypes/OXA-MIRA-UX/#/article/105391): a masthead with
@@ -126,7 +134,7 @@ studies with their protocols, and the cited works with reference entries. One ro
 plain summary only; a row opens in place to the full record (statement with statistic, quote,
 figure thumbnail and link, edges) and to its children — evidence grouped as supported by / argued
 against by / checks / from cited work, interpretations under "read as". One open node per level;
-"collapse all" closes everything. Ids are typed (Q H F A E K C R S P) and each row shows its
+"collapse all" closes everything. Ids are typed (Q H F A E K D C R S P) and each row shows its
 counterpart in the compared graph (`= g3`) or `new`. Verification, Compared and JSON sit under the
 toolbar's Internal menu (Data in the delivered page) so a shared page reads as a reader's tool. Publish it as its
 own artifact for review (Gädeke: https://claude.ai/artifact/2hV3hPEa8P1tgkVuzCrsHJ); the artifact
@@ -138,13 +146,13 @@ prototype has them; cited works are SourceDocuments with bibliography fields (`a
 nodes may carry extra `anchors`; the extractor-shaped `.graph.json` is what goes to eLife's
 prototype, the JSON-LD alongside it for Paul.
 
-The handoff itself is the page: `mira_viewer.py ... --embed-figures --deliver --out <paper>-hand.deliver.html`
+The handoff itself is the page: `mira_viewer.py ... --embed-figures --deliver --out <short>-hand.deliver.html`
 builds the one eLife receives (Gädeke: https://claude.ai/artifact/5AFpgCyeGQXKbCZzAUe1M6). It
 drops the comparison and the verification table; its toolbar offers About this graph
 (facts only: what it is and who built and reviewed it; what is in it; a Contents table of counts
 by kind and subtype; what is new, the four subclasses one line each; the checks; the two files), the cleaned working-graph JSON
 (written beside it as `.deliver.graph.json`, no `key`, with a `fields` block naming the extra
-fields) and the MIRA JSON-LD, read from `<paper>-hand.mira.jsonld`. One self-contained file, no
+fields) and the MIRA JSON-LD, read from `<short>-hand.mira.jsonld`. One self-contained file, no
 server, no outside requests: `--embed-figures` inlines every figure in the graph's `figures`
 table (not only those on evidence nodes; the artifact frame blocks eLife's image host) and
 copies them to `fig/` beside the page as a fallback. Do not publish `fig/` with the artifact:
@@ -153,9 +161,9 @@ Version the graph: the builder sets `version` and `date` on the JSON (and the JS
 the page shows them in the masthead and the About page. Every change that reaches the delivered
 page is its own version (major.minor.patch: schema or subclasses / nodes or edges / wording,
 summaries, anchors or the page), committed on its own, recorded in the run's `CHANGELOG.md`, and
-tagged `<paper>-mira-v<version>` on the corpus (`gadeke-mira-v1.0.0`, 2026-10-28, was the first delivered
-version; the builder's `stats` block, the per-change versions came in 1.0.1 to 1.0.4 and the
-three-region layout in 1.1.0 the same day; see the run's `CHANGELOG.md`). Bump, rebuild, verify, republish, commit, tag: in that order. Keep the JSON: it is the
+tagged `<short>-mira-v<version>` on the corpus (`gadeke-mira-v1.0.0`, 2026-10-28, was the first delivered
+version; `gadeke-mira-v1.0` is an earlier tag it supersedes; the builder's `stats` block, the per-change versions came in 1.0.1 to 1.0.4 and the
+three-region layout in 1.1.0 the same day; 1.1.1, 2026-11-01, typed the figure images; see the run's `CHANGELOG.md`). Bump, rebuild, verify, republish, commit, tag: in that order. Keep the JSON: it is the
 form the Pathways prototype loads; the JSON-LD is for MIRA. Every chip shows its node's full
 statement on hover; edge lines in a drawer are chip triples only.
 

@@ -21,6 +21,7 @@ rather than quoting a number somebody typed.
 Usage:
   python3 scripts/validate_mira.py              # all public exports
   python3 scripts/validate_mira.py <slug>       # one paper
+  python3 scripts/validate_mira.py <file.jsonld>  # any MIRA JSON-LD file (e.g. a hand-built graph)
   python3 scripts/validate_mira.py --json       # machine-readable, no table
 """
 
@@ -146,7 +147,7 @@ def main():
     slugs = [a.paper] if a.paper else public_papers()
     papers, missing = {}, []
     for s in slugs:
-        f = os.path.join(EXPORTS, f"{s}.mira.jsonld")
+        f = s if s.endswith(".jsonld") else os.path.join(EXPORTS, f"{s}.mira.jsonld")
         if not os.path.exists(f):
             missing.append(s)
             continue
