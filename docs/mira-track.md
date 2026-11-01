@@ -208,6 +208,11 @@ deliberately left out of its base spec. Alternative has no name upstream; that i
 3. The alternatives pass: a precision guard (an `opposes` edge requires that the paper itself
    draws the inference, anchored) and sub-steps for the two construction cases (rivals read
    off a design; rivals read off a model comparison).
+   Both are now written as Stage 5 of the de novo specification,
+   `docs/design/2026-11-01-mira-denovo-stages.md`: eight stages (inventory, evidence per panel,
+   findings, hypotheses, alternatives, checks/cited/requests, questions and summaries, assemble),
+   each with its rule, checker and Gädeke reference set. Next: prompts per stage, a runner
+   `scripts/mira_denovo.py`, a blind run on Gädeke scored against the hand graph.
 4. Scoring every run against the adjudicated reference, by meaning (not keywords).
 5. A second, unlike paper (Headley, a modelling paper) through the same steps.
 6. The local site: a page for the hand-built graph; later, the site consuming MIRA directly.
