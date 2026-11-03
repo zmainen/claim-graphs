@@ -1198,6 +1198,26 @@ layers:
   # measure, and add a stage only where it demonstrates a benefit. Each stage is a layer here so
   # that every committed run adds a page to the site, and the comparison is visible step by step.
 
+  - id: mira-denovo
+    group: mira
+    kind: step
+    title: MIRA de novo
+    question: Can the staged procedure that produced the hand-built graph produce it again, blind, on this paper and others?
+    needs: [prepare]
+    reads: [docs/design/2026-11-01-mira-denovo-stages.md, extract/prompts/mira/, scripts/mira_denovo.py, scripts/mira_harness.py]
+    produces: ["runs/{paper}/mira-denovo/{paper}-denovo.graph.json", "runs/{paper}/mira-denovo/stage1.json", "runs/{paper}/mira-denovo/harness.html"]
+    views: [document, table]
+    by_from: model
+    status: proposed
+    issue: zmainen/claim-graphs#77
+    added: "2026-11-03"
+    command: "python3 scripts/mira_denovo.py run {paper} --msid <msid> --reference runs/{paper}/mira-hand/<paper>-hand.graph.json"
+    doc: >
+      Eight stages, each a prompt that proposes and a checker that accepts: inventory, evidence
+      per figure panel, findings, hypotheses, alternatives with the anchored-inference guard,
+      checks and cited work and requests, questions and summaries, assembly. Every call's prompt
+      and reply are kept; the harness page shows the specification, the prompts, the calls and
+      what was refused. On Gädeke the run is blind and scored against the hand-built reference.
   - id: mira-baseline
     group: mira
     kind: step
