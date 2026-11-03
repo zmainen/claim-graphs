@@ -75,6 +75,9 @@ groups:
   interchange:
     title: Interchange
     question: What survives when a claim tree leaves this format?
+  mira:
+    title: MIRA track
+    question: Starting from MIRA's own vocabulary and the community extractor, what does each added stage earn?
 
 layers:
 
@@ -1189,3 +1192,35 @@ layers:
     issue: zmainen/claim-graphs#53
     added: "2026-09-14"
     command: "python3 scripts/modules.py {paper} --write"
+
+  # ── MIRA track ─────────────────────────────────────────────────────────────
+  # The programme agreed on #77: start from MIRA's own vocabulary and the community extractor,
+  # measure, and add a stage only where it demonstrates a benefit. Each stage is a layer here so
+  # that every committed run adds a page to the site, and the comparison is visible step by step.
+
+  - id: mira-baseline
+    group: mira
+    kind: step
+    title: MIRA baseline
+    question: What does the community extractor's single call recover from this paper, and what does it miss?
+    needs: [prepare]
+    reads: [extract/prompts/external/mira-extraction/system_message.txt,
+            extract/prompts/external/mira-extraction/user_preamble.txt,
+            scripts/mira_baseline.py]
+    produces: ["runs/{paper}/mira-baseline/README.md", "runs/{paper}/mira-baseline/summary.json"]
+    views: [document, table]
+    by_from: model
+    status: proposed
+    issue: zmainen/claim-graphs#77
+    added: "2026-10-16"
+    command: "python3 scripts/mira_baseline.py run {paper}"
+    doc: >
+      The MIRA community extractor (MIRA-science/MIRA-extraction) sends the whole paper to one
+      pinned model in one call and returns a MIRA graph. This layer reproduces that call exactly —
+      its prompt verbatim, its message composition, temperature, output cap, streaming and
+      retries — on the same prepared text our readers read, without running the extractor's own
+      code, and keeps the raw graph the model returned. Run several times on the pinned free model
+      and once on a stronger one, it is the baseline every later stage of the track is measured
+      against: what a single call recovers, how stable it is across repeats, what it costs, and
+      what it leaves out. The README beside the runs is the error catalogue, each entry tied to
+      the passage of the paper that shows it.
