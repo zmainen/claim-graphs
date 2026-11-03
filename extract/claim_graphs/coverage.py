@@ -77,6 +77,7 @@ def extract_statistics(paper: PreparedPaper) -> list[Statistic]:
     """Every reported statistic in the paper, by slice."""
     slices = {
         "results": paper.results_text,
+        "argument": paper.argument_text,
         "captions": paper.captions_text,
         "tables": paper.tables_text,
         "methods": paper.methods_text,

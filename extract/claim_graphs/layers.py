@@ -656,7 +656,10 @@ def _paper_questions(paper: str, cfg: Config) -> list[dict]:
 
 
 def _results_spans(paper: str, cfg: Config) -> list[tuple[str, str]]:
-    """(uid, text) for the Results section of the prepared paper — the span ids the model cites.
+    """(uid, text) for the prose the paper argues in — the span ids the model cites.
+
+    `results` for an IMRaD paper and `argument` for one that is not; a paper has one or the
+    other and never both, so this is one section under two names rather than a union.
 
     A prepared.json written before spans were recorded carries none, so the spans are segmented
     from the prepared paper on the fly — the same function prepare uses — rather than leaving the
@@ -667,7 +670,7 @@ def _results_spans(paper: str, cfg: Config) -> list[tuple[str, str]]:
     prepared = read_prepared(paper, cfg)
     spans = prepared.spans or [s for s in _build_spans(prepared)]
     return [(s["uid"], " ".join(str(s.get("text") or "").split()))
-            for s in spans if s.get("section") == "results"]
+            for s in spans if s.get("section") in ("results", "argument")]
 
 
 def stance_request(paper: str, cfg: Config) -> tuple[str, str]:

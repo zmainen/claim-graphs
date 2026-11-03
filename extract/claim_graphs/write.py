@@ -603,11 +603,15 @@ def _find_pairs(cfg: Config, paper_slug: str) -> Path | None:
 
 
 def carry_over(cfg: Config, paper_slug: str, archive: Path,
-               pairs_path: Path | None = None) -> dict:
+               pairs_path: Path | None = None, paper_doi: str | None = None) -> dict:
     """Carry `alt-` claims, their `rules-out` edges, and reproduction records forward.
 
     `archive` is the tree just moved aside (the version being replaced); the new tree is in
-    `cfg.corpus_dir/<paper>`. Returns a summary and writes it to `archive/carried.json`, which
+    `cfg.corpus_dir/<paper>`. `paper_doi` is the reference the new tree was written with: a
+    carried claim is copied whole, so without it an alternative keeps whatever reference was
+    current when it was first written and a corrected one never reaches it — which is how five
+    `alt-` files stayed on an absolute path after every other claim in the tree had moved off
+    it. Paper-level identity belongs to the paper, not to the version of the claim. Returns a summary and writes it to `archive/carried.json`, which
     records what landed where and what could not be placed — an unmapped source is written down,
     not guessed. A no-op that still writes the summary when the archive holds nothing to carry.
     """
@@ -642,7 +646,13 @@ def carry_over(cfg: Config, paper_slug: str, archive: Path,
     # 1. The rejected alternatives, whole. They keep their own `alt-` slug — the new tree has no
     #    claim for them, so there is nothing to map and nothing to collide with.
     for f in sorted(archive.glob("alt-*.md")):
-        shutil.copy2(f, new_dir / f.name)
+        dest = new_dir / f.name
+        shutil.copy2(f, dest)
+        if paper_doi is not None:
+            dest.write_text(
+                re.sub(r"^(\s+doi:).*$", lambda m: f"{m.group(1)} {paper_doi}",
+                       dest.read_text(encoding="utf-8"), count=1, flags=re.M),
+                encoding="utf-8")
         summary["alt_claims"].append(f.stem)
 
     # 2. Every `rules-out` edge that named one of those alternatives, re-aimed at the new claim

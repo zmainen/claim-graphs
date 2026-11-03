@@ -136,18 +136,22 @@ def draft_from_raw(
         logger.warning("reconciler: %d confidence label(s) did not match the source count "
                        "and were corrected", moved)
 
-    # Build the DraftClaimTable, filling in fields the reconciler may have skipped
-    parsed.setdefault("paper_doi", paper_doi)
-    parsed.setdefault("paper_title", paper_title)
-    parsed.setdefault("paper_slug", results.paper_slug)
-    parsed.setdefault(
-        "per_agent_counts",
-        {
-            "results": len(results.claims),
-            "caption": len(caption.claims),
-            "structure": len(structure.claims),
-        },
-    )
+    # These are set, not defaulted. The distinction matters: `setdefault` leaves the value to
+    # the model whenever the model supplied one, which is the opposite of what this function
+    # says it does — and the model always supplies them, because its prompt shows them. A
+    # reconciler echoing the reference it was shown is how a paper's identity came back stale
+    # after the reference was corrected upstream, and `per_agent_counts` is worse than stale
+    # if echoed: it is the evidence the confidence grade is computed from, so a model that
+    # miscounts its own inputs would be rewriting the record of how well attested a claim is.
+    # Same reasoning as `extraction_path` below, which was already fixed this way.
+    parsed["paper_doi"] = paper_doi
+    parsed["paper_title"] = paper_title
+    parsed["paper_slug"] = results.paper_slug
+    parsed["per_agent_counts"] = {
+        "results": len(results.claims),
+        "caption": len(caption.claims),
+        "structure": len(structure.claims),
+    }
     parsed.setdefault(
         "config_snapshot",
         {

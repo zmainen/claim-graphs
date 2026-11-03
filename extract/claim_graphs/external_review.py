@@ -63,23 +63,19 @@ def _format_paper_context(paper: PreparedPaper, max_results_chars: int = 120000)
         f"## Abstract",
         "",
         paper.abstract,
-        "",
-        f"## Introduction",
-        "",
-        paper.introduction_text,
-        "",
-        f"## Results section",
-        "",
-        results + truncated_note,
-        "",
-        f"## Discussion",
-        "",
-        paper.discussion_text,
-        "",
-        f"## Figure captions",
-        "",
-        paper.captions_text,
     ]
+    # A paper that is not IMRaD has no Introduction, Results or Discussion to render, and
+    # printing those three headings over nothing showed the reviewer a paper whose body was
+    # missing — it read the argument as absent and went to the source file to find it, which
+    # the ledger cannot see. Its argument goes under its own heading instead. An IMRaD paper
+    # has no `argument_text`, takes the first branch, and its prompt is unchanged to the byte.
+    if paper.argument_text:
+        parts += ["", "## Argument", "", paper.argument_text]
+    else:
+        parts += ["", "## Introduction", "", paper.introduction_text,
+                  "", "## Results section", "", results + truncated_note,
+                  "", "## Discussion", "", paper.discussion_text]
+    parts += ["", "## Figure captions", "", paper.captions_text]
     return "\n".join(parts)
 
 
