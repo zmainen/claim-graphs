@@ -272,7 +272,7 @@ def stage7(d, text, hyp, fnd, alt, ev, req, model, dry):
 def stage8(d, paper, text, model, s1, s2, s3, s4, s5, s6, s7, reference):
     fj = jload(os.path.join(d, "figures.json"), {}) or {}
     figs = fj.get("figures", fj) if isinstance(fj, dict) else fj
-    figmap = {f["label"]: f for f in figs if f.get("label")}
+    figmap = {f["label"].rstrip(":. "): f for f in figs if f.get("label")}   # eLife labels read "Figure 1:"
     def figure_for(panel):
         m = re.match(r"(Figure \d+)", panel or ""); f = figmap.get(m.group(1)) if m else None
         return {"label": panel, "image": f["image"], "thumbnail": f["thumbnail"], "page": f["page"]} if f and f.get("image") else None

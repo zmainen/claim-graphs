@@ -16,7 +16,7 @@ def nums(s):
 
 def main():
     a = sys.argv[1:]
-    ours, theirs, hand = (json.load(open(p, encoding="utf-8")) for p in a[:3])
+    ours, theirs, hand = (json.loads(open(p, encoding="utf-8").read() or "{}") for p in a[:3])   # an empty hand map (/dev/null) aligns evidence only
     out = a[a.index("--out") + 1] if "--out" in a else "alignment.json"
     O = {n["id"]: n for n in ours["nodes"]}; T = {n["id"]: n for n in theirs["nodes"]}
     KEY = {n.get("key", n["id"]): n["id"] for n in ours["nodes"]}   # the hand map may use a node's `key` (its mnemonic)
