@@ -9,15 +9,17 @@ Anchors must be verbatim in text.txt; anything else is refused, not repaired.
 
 Usage:
   mira_denovo.py run <paper> [--msid 105391 | --text file.txt] [--from N] [--to N] [--model M] [--dry-run] [--reference graph.json]
-  mira_denovo.py stage <paper> N                      # one stage, inputs from the files on disk
+  mira_denovo.py stage <paper> N [same options]       # one stage, inputs from the files on disk
+A reply that is not JSON, or a call that fails, stops the run; resume with --from N.
 --dry-run renders every prompt it can from the inputs on disk and makes no call.
 Model default: anthropic/claude-sonnet-4.5 (OpenRouter id); the key comes from the Keychain.
 --model claude:<id> (e.g. claude:claude-sonnet-4-5) runs each call through `claude -p` on the Max subscription
 instead, isolated so the model sees only the stage prompt: empty temp cwd, no settings, CLAUDE.md, memory,
-tools or MCP. Temperature and the output cap cannot be set there; the CLI defaults apply.
+tools or MCP. The output cap is set to the same 30000 tokens; temperature cannot be set there.
 """
 import json, os, re, subprocess, sys, tempfile, time
 from collections import Counter, OrderedDict
+import click
 
 HERE = os.path.dirname(os.path.abspath(__file__)); ROOT = os.environ.get("CLAIM_GRAPHS_ROOT") or os.getcwd()   # the corpus, where runs/ lives
 sys.path.insert(0, HERE)
@@ -27,7 +29,9 @@ CG = os.path.dirname(HERE)   # claim-graphs, where the prompts live
 PROMPTS = os.path.join(CG, "extract", "prompts", "mira")
 DEFAULT_MODEL = "anthropic/claude-sonnet-4.5"
 STAGES = ["inventory", "evidence", "findings", "hypotheses", "alternatives", "checks-cited-requests", "questions-summaries", "assemble"]
-PANEL_RE = re.compile(r"\b(Figure \d+[A-Z]?|Table \d+|Supplementary Figure \d+[A-Z]?|Supplementary Table \d+)\b")
+# a figure or table, then its panel letters as written: "Figure 3D", "Figure 2B, C", "Figure 3A–D", "Figure 4A and B"
+PANEL_RE = re.compile(r"\b((?:Supplementary )?(?:Figure|Table) \d+)((?:[A-Z](?![A-Za-z])(?:\s*(?:[–-]|,|and)\s*[A-Z](?![A-Za-z]))*)?)")
+L = lambda i, k: i.get(k) or []   # a list field the model may have sent as null
 
 # ── files ──────────────────────────────────────────────────────────────────────────────────────
 
@@ -65,6 +69,7 @@ def parse_json(t):
 def claude_cli(system, user, model):
     """One call through Claude Code headless on the subscription. Returns stream()'s (content, reasoning_chars, model, usage, error)."""
     env = {k: v for k, v in os.environ.items() if not k.startswith(("ANTHROPIC_", "CLAUDE_CODE_USE_", "CLAUDECODE"))}
+    env["CLAUDE_CODE_MAX_OUTPUT_TOKENS"] = "30000"   # the OpenRouter path's max_tokens
     cmd = ["claude", "-p", "--model", model, "--system-prompt", system, "--output-format", "json", "--max-turns", "1",
            "--tools", "", "--setting-sources", "", "--strict-mcp-config", "--no-session-persistence",
            "--exclude-dynamic-system-prompt-sections"]
@@ -75,9 +80,10 @@ def claude_cli(system, user, model):
     except ValueError: return "", 0, model, None, (r.stderr or r.stdout)[-2000:] or f"exit {r.returncode}"
     init = next((e for e in ev if e.get("type") == "system"), {}); j = next((e for e in reversed(ev) if e.get("type") == "result"), {})
     usage = dict(j.get("usage") or {}, cost_usd_equivalent=j.get("total_cost_usd"), auth=init.get("apiKeySource"),
-                 tools=init.get("tools"), mcp_servers=init.get("mcp_servers"), cli_version=init.get("claude_code_version"))
-    return j.get("result") or "", 0, ",".join(j.get("modelUsage") or {}) or model, usage, \
-        (j.get("result") or j.get("subtype") or "no result") if j.get("is_error") or not j else None
+                 tools=init.get("tools"), mcp_servers=init.get("mcp_servers"), cli_version=init.get("claude_code_version"), stop_reason=j.get("stop_reason"))
+    error = (j.get("result") or j.get("subtype") or "no result") if j.get("is_error") or not j else \
+        "output cap reached" if j.get("stop_reason") == "max_tokens" else None
+    return j.get("result") or "", 0, ",".join(j.get("modelUsage") or {}) or model, usage, error
 
 def call(d, tag, system, user, model, dry):
     base = os.path.join(d, "calls", tag)
@@ -93,19 +99,21 @@ def call(d, tag, system, user, model, dry):
     jdump({"model": model, "served_by": used, "usage": usage, "error": error, "seconds": round(time.time() - t0, 1),
            "prompt_chars": len(system) + len(user), "reply_chars": len(content), "reasoning_chars": reasoning,
            "at": time.strftime("%Y-%m-%dT%H:%M:%S")}, base + ".meta.json")
-    if error: print(f"  {tag}: error {error}")
-    return parse_json(content)
+    rep = parse_json(content)
+    if error or rep is None:
+        sys.exit(f"  {tag}: {error or 'reply is not JSON'} (see {base}.raw.txt); fix and resume with --from {tag[5]}")
+    return rep
 
 # ── checkers: every stage returns (accepted, rejected) ─────────────────────────────────────────
 
 def verbatim(text, a):
     return bool(a) and a in text
 
-def check_items(items, text, rules):
-    """rules: list of (name, predicate(item) -> True|reason). Verbatim anchor is always first."""
+def check_items(items, text, rules, need=("key", "text")):
+    """rules: list of (name, predicate(item) -> True|reason). Verbatim anchor and the `need` fields are always checked first."""
     ok, bad = [], []
     for it in items or []:
-        why = [] if verbatim(text, it.get("anchor")) else ["anchor not verbatim"]
+        why = ([] if verbatim(text, it.get("anchor")) else ["anchor not verbatim"]) + [f"no {f}" for f in need if not it.get(f)]
         for name, pred in rules:
             r = pred(it)
             if r is not True: why.append(f"{name}: {r}")
@@ -114,9 +122,18 @@ def check_items(items, text, rules):
 
 # ── stage 1: inventory ─────────────────────────────────────────────────────────────────────────
 
+def panel_refs(s):
+    """Every panel a string cites, ranges and lists expanded: "Figure 3A–C" -> Figure 3A, Figure 3B, Figure 3C."""
+    for m in PANEL_RE.finditer(s or ""):
+        fig, toks = m.group(1), re.findall(r"[A-Z]|[–-]", m.group(2))
+        if not toks: yield fig; continue
+        for i, t in enumerate(toks):
+            if t in "–-": continue
+            lo = ord(toks[i - 2]) + 1 if i >= 2 and toks[i - 1] in "–-" else ord(t)
+            yield from (fig + chr(c) for c in range(lo, ord(t) + 1))
+
 def panels_in(text):
-    seen = OrderedDict()
-    for m in PANEL_RE.finditer(text): seen.setdefault(m.group(1), 0); seen[m.group(1)] += 1
+    seen = OrderedDict.fromkeys(panel_refs(text))
     # a figure's letters imply the figure; keep letters, drop the bare figure when letters exist
     letters = {p for p in seen if re.search(r"\d[A-Z]$", p)}
     bare = {re.sub(r"[A-Z]$", "", p) for p in letters}
@@ -130,11 +147,12 @@ def groups_of(panels):
 def stage1(d, text, model, dry):
     system, user, _ = render(1, {"text": text})
     rep = call(d, "stage1", system, user, model, dry) or {}
-    studies, bad_s = check_items(rep.get("studies"), text, [("text", lambda i: True if i.get("text") else "no text")])
+    studies, bad_s = check_items(rep.get("studies"), text, [])
     skeys = {s["key"] for s in studies}
     protocols, bad_p = check_items(rep.get("protocols"), text, [
-        ("followed", lambda i: True if any(k in skeys for k in i.get("followed_by", [])) else "no study follows it")])
-    inv = {"panels": panels_in(text), "groups": groups_of(panels_in(text)), "studies": studies, "protocols": protocols}
+        ("followed", lambda i: True if any(k in skeys for k in L(i, "followed_by")) else "no study follows it")])
+    panels = panels_in(text)
+    inv = {"panels": panels, "groups": groups_of(panels), "studies": studies, "protocols": protocols}
     if not dry: jdump(inv, os.path.join(d, "stage1.json")); jdump({"studies": bad_s, "protocols": bad_p}, os.path.join(d, "stage1.rejected.json"))
     return inv
 
@@ -142,8 +160,8 @@ def stage1(d, text, model, dry):
 
 def passages(text, panels, width=700):
     """Paragraphs mentioning any of the panels, with their neighbours, deduplicated and in order."""
-    paras = [p for p in text.split("\n\n")]
-    hit = {i for i, p in enumerate(paras) if any(re.search(r"\b" + re.escape(x) + r"\b", p) for x in panels)}
+    paras, want = text.split("\n\n"), set(panels)
+    hit = {i for i, p in enumerate(paras) if want & set(panel_refs(p))}
     keep = sorted({j for i in hit for j in (i - 1, i, i + 1) if 0 <= j < len(paras)})
     return "\n\n".join(paras[j] for j in keep)
 
@@ -156,12 +174,14 @@ def stage2(d, text, inv, model, dry):
                                      "panel_text": passages(text, panels + [fig])})
         rep = call(d, f"stage2-{k:02d}", system, user, model, dry) or {}
         ok, bad = check_items(rep.get("evidence"), text, [
-            ("study", lambda i: True if i.get("study") in skeys else f"unknown study {i.get('study')!r}"),
-            ("panel", lambda i: True if i.get("panel") else "no panel"),
-            ("text", lambda i: True if i.get("text") else "no text")])
-        for it in ok: it["group"] = fig
+            ("study", lambda i: True if i.get("study") in skeys else f"unknown study {i.get('study')!r}")], need=("key", "text", "panel"))
+        seen = {e["key"] for e in acc}
+        for it in ok:   # each group's call names its keys blind to the others; a clash gets the group number
+            it["group"] = fig
+            if it["key"] in seen: it["key"] = f"{it['key']}_g{k}"
+            seen.add(it["key"])
         acc += ok; rej += bad
-    covered = {p for e in acc for p in PANEL_RE.findall(e.get("panel", ""))} | {e.get("panel") for e in acc}
+    covered = {p for e in acc for p in panel_refs(e["panel"])} | {e["panel"] for e in acc}
     uncovered = [p for p in inv["panels"] if p not in covered and re.sub(r"[A-Z]$", "", p) not in covered]
     out = {"evidence": acc, "uncovered_panels": uncovered}
     if not dry: jdump(out, os.path.join(d, "stage2.json")); jdump(rej, os.path.join(d, "stage2.rejected.json"))
@@ -175,9 +195,9 @@ def stage3(d, text, ev, model, dry):
     rep = call(d, "stage3", system, user, model, dry) or {}
     ekeys = {e["key"] for e in ev["evidence"]}
     ok, bad = check_items(rep.get("findings"), text, [
-        ("supported", lambda i: True if any(k in ekeys for k in i.get("supported_by", [])) else "no known evidence supports it"),
+        ("supported", lambda i: True if any(k in ekeys for k in L(i, "supported_by")) else "no known evidence supports it"),
         ("no statistic", lambda i: True if not re.search(r"\bp\s*[<=>]|t\(\d|BF10|β\s*=", i.get("text", "")) else "statistic in text")])
-    used = {k for f in ok for k in f.get("supported_by", []) + f.get("opposed_by", [])}
+    used = {k for f in ok for k in L(f, "supported_by") + L(f, "opposed_by")}
     out = {"findings": ok, "evidence_unused": sorted(ekeys - used)}
     if not dry: jdump(out, os.path.join(d, "stage3.json")); jdump(bad, os.path.join(d, "stage3.rejected.json"))
     return out
@@ -187,7 +207,7 @@ def stage4(d, text, fnd, model, dry):
     rep = call(d, "stage4", system, user, model, dry) or {}
     fkeys = {f["key"] for f in fnd["findings"]}
     ok, bad = check_items(rep.get("hypotheses"), text, [
-        ("tested", lambda i: True if any(k in fkeys for k in i.get("supported_by", []) + i.get("opposed_by", [])) else "no finding tests it")])
+        ("tested", lambda i: True if any(k in fkeys for k in L(i, "supported_by") + L(i, "opposed_by")) else "no finding tests it")])
     out = {"hypotheses": ok}
     if not dry: jdump(out, os.path.join(d, "stage4.json")); jdump(bad, os.path.join(d, "stage4.rejected.json"))
     return out
@@ -198,7 +218,7 @@ def stage5(d, text, hyp, fnd, ev, model, dry):
     ekeys = {e["key"] for e in ev["evidence"]}
     def edges_ok(i):   # the precision guard: every opposes/supports edge carries its own verbatim inference sentence
         for side in ("opposed_by", "supported_by"):
-            for e in i.get(side, []):
+            for e in L(i, side):
                 if e.get("evidence") not in ekeys: return f"{side}: unknown evidence {e.get('evidence')!r}"
                 if not verbatim(text, e.get("anchor")): return f"{side}: edge anchor not verbatim"
         return True
@@ -217,12 +237,12 @@ def stage6(d, text, ev, fnd, hyp, alt, model, dry):
                                  "alternatives": alt["alternatives"], "references": references_of(d), "text": text})
     rep = call(d, "stage6", system, user, model, dry) or {}
     ekeys = {e["key"] for e in ev["evidence"]}; ckeys = {f["key"] for f in fnd["findings"]} | {h["key"] for h in hyp["hypotheses"]} | {a["key"] for a in alt["alternatives"]}
-    checks = [c for c in rep.get("checks", []) if c.get("evidence") in ekeys]
-    cited, bad_c = check_items(rep.get("cited"), text, [
+    checks = [c for c in L(rep, "checks") if c.get("evidence") in ekeys and c.get("role")]
+    cited, bad_c = check_items(rep.get("cited"), text, need=("key", "authors", "year", "title", "journal", "finding"), rules=[
         ("doi", lambda i: True if re.match(r"^10\.\d{4,}/", i.get("doi", "")) else "no DOI"),
         ("bears_on", lambda i: True if i.get("bears_on") in ckeys else f"unknown claim {i.get('bears_on')!r}")])
     requests, bad_r = check_items(rep.get("requests"), text, [
-        ("about", lambda i: True if any(k in ckeys for k in i.get("about", [])) else "no known target")])
+        ("about", lambda i: True if any(k in ckeys for k in L(i, "about")) else "no known target")])
     out = {"checks": checks, "cited": cited, "requests": requests}
     if not dry: jdump(out, os.path.join(d, "stage6.json")); jdump({"cited": bad_c, "requests": bad_r}, os.path.join(d, "stage6.rejected.json"))
     return out
@@ -237,6 +257,7 @@ def stage7(d, text, hyp, fnd, alt, ev, req, model, dry):
         ("addressed", lambda i: True if any((i.get("addresses") or {}).get(k) for k in ("hypotheses", "alternatives", "findings")) else "nothing addresses it")])
     summaries, bad_s = {}, {}
     for k, s in (rep.get("summaries") or {}).items():
+        if not isinstance(s, str): bad_s[k] = {"summary": s, "refused": "not text"}; continue
         n = len([x for x in re.split(r"(?<=[.!?])\s+", s.strip()) if x])
         if 1 <= n <= 2 and not EDITORIAL.match(s) and not re.search(r"\d", s): summaries[k] = s
         else: bad_s[k] = {"summary": s, "refused": "sentences" if n > 2 else "editorial" if EDITORIAL.match(s) else "contains a number"}
@@ -246,7 +267,7 @@ def stage7(d, text, hyp, fnd, alt, ev, req, model, dry):
 
 # ── stage 8: assemble ──────────────────────────────────────────────────────────────────────────
 
-def stage8(d, paper, text, s1, s2, s3, s4, s5, s6, s7, reference):
+def stage8(d, paper, text, model, s1, s2, s3, s4, s5, s6, s7, reference):
     fj = jload(os.path.join(d, "figures.json"), {}) or {}
     figs = fj.get("figures", fj) if isinstance(fj, dict) else fj
     figmap = {f["label"]: f for f in figs if f.get("label")}
@@ -262,9 +283,9 @@ def stage8(d, paper, text, s1, s2, s3, s4, s5, s6, s7, reference):
     for st in s1["studies"]: node(st["key"], "Study", st["text"], st.get("description"), st["anchor"])
     for p in s1["protocols"]:
         node(p["key"], "Protocol", p["text"], p.get("description"), p["anchor"])
-        for st in p.get("followed_by", []): edge("follows", st, p["key"])
-    doi = (jload(os.path.join(d, "paper.json"), {}) or {}).get("doi", "")
-    node("d_paper", "SourceDocument", (jload(os.path.join(d, "paper.json"), {}) or {}).get("title", paper), "The paper this graph is extracted from.", text[:80].strip(), doi=doi)
+        for st in L(p, "followed_by"): edge("follows", st, p["key"])
+    paper_meta = jload(os.path.join(d, "paper.json"), {}) or {"title": paper}; doi = paper_meta.get("doi", "")
+    node("d_paper", "SourceDocument", paper_meta.get("title", paper), "The paper this graph is extracted from.", text[:80].strip(), doi=doi)
     for st in s1["studies"]: edge("describesActivity", "d_paper", st["key"])
     checks = {c["evidence"]: c["role"] for c in s6["checks"]}
     for e in s2["evidence"]:
@@ -274,16 +295,16 @@ def stage8(d, paper, text, s1, s2, s3, s4, s5, s6, s7, reference):
     for h in s4["hypotheses"]: node(h["key"], "Claim", h["text"], S.get(h["key"]), h["anchor"], subtype="Hypothesis")
     for f in s3["findings"]:
         node(f["key"], "Claim", f["text"], S.get(f["key"]), f["anchor"], notes=f.get("notes"))
-        for k in f.get("supported_by", []): edge("supports", k, f["key"])
-        for k in f.get("opposed_by", []): edge("opposes", k, f["key"])
+        for k in L(f, "supported_by"): edge("supports", k, f["key"])
+        for k in L(f, "opposed_by"): edge("opposes", k, f["key"])
         if f.get("interprets"): edge("supports", f["interprets"], f["key"])
     for h in s4["hypotheses"]:
-        for k in h.get("supported_by", []): edge("supports", k, h["key"])
-        for k in h.get("opposed_by", []): edge("opposes", k, h["key"])
+        for k in L(h, "supported_by"): edge("supports", k, h["key"])
+        for k in L(h, "opposed_by"): edge("opposes", k, h["key"])
     for a in s5["alternatives"]:
         node(a["key"], "Claim", a["text"], S.get(a["key"]), a["anchor"], subtype="Alternative", notes=a.get("notes"))
-        for e in a.get("opposed_by", []): edge("opposes", e["evidence"], a["key"])
-        for e in a.get("supported_by", []): edge("supports", e["evidence"], a["key"])
+        for e in L(a, "opposed_by"): edge("opposes", e["evidence"], a["key"])
+        for e in L(a, "supported_by"): edge("supports", e["evidence"], a["key"])
     for c in s6["cited"]:
         entry = f"{', '.join(c['authors'])} ({c['year']}). {c['title']}. {c['journal']} {c.get('volume', '')}:{c.get('pages', '')}."
         node(c["key"], "SourceDocument", entry, f"Cited work this paper leans on.", c["anchor"], doi=c["doi"], url="https://doi.org/" + c["doi"],
@@ -292,13 +313,15 @@ def stage8(d, paper, text, s1, s2, s3, s4, s5, s6, s7, reference):
         edge(c.get("relation", "supports"), ek, c["bears_on"])
     for r in s6["requests"]:
         node(r["key"], "Request", r["text"], S.get(r["key"]), r["anchor"])
-        for k in r.get("about", []): edge("request_target", r["key"], k)
+        for k in L(r, "about"): edge("request_target", r["key"], k)
     for q in s7["questions"]:
         ad = q.get("addresses") or {}
-        for k in ad.get("hypotheses", []) + ad.get("alternatives", []) + ad.get("findings", []): edge("addresses", k, q["key"])
+        for k in L(ad, "hypotheses") + L(ad, "alternatives") + L(ad, "findings"): edge("addresses", k, q["key"])
     # typed ids
     PREFIX = {("Question", None): "Q", ("Claim", "Hypothesis"): "H", ("Claim", None): "F", ("Claim", "Alternative"): "A", ("Evidence", None): "E",
               ("Evidence", "Check"): "K", ("Evidence", "Cited"): "E", ("Request", None): "R", ("Study", None): "S", ("Protocol", None): "P", ("SourceDocument", None): "D"}
+    dup = [k for k, c in Counter(n["key"] for n in N).items() if c > 1]
+    if dup: sys.exit(f"stage 8: keys used by more than one node: {dup}")
     counts, ID = Counter(), {}
     for n in N:
         pre = "C" if n["type"] == "SourceDocument" and n["key"] != "d_paper" else PREFIX[(n["type"], n.get("subtype"))]
@@ -311,28 +334,29 @@ def stage8(d, paper, text, s1, s2, s3, s4, s5, s6, s7, reference):
     for e in E: e["subject"], e["object"] = ID[e["subject"]], ID[e["object"]]
     stats = {"nodes": len(N), "edges": len(E), "by_type": dict(sorted(Counter(n["type"] for n in N).items())),
              "by_relation": dict(sorted(Counter(e["relation"] for e in E).items())), "uncovered_panels": s2.get("uncovered_panels", [])}
-    graph = {"version": "0.1.0", "date": time.strftime("%Y-%m-%d"), "source": f"de novo, staged extraction ({DEFAULT_MODEL}); unadjudicated", "slug": paper,
-             "paper": jload(os.path.join(d, "paper.json"), {"title": paper}), "subtypes": {"Hypothesis": "Claim", "Alternative": "Claim", "Check": "Evidence", "Cited": "Evidence"},
+    graph = {"version": "0.1.0", "date": time.strftime("%Y-%m-%d"), "source": f"de novo, staged extraction ({model}); unadjudicated", "slug": paper,
+             "paper": paper_meta, "subtypes": {"Hypothesis": "Claim", "Alternative": "Claim", "Check": "Evidence", "Cited": "Evidence"},
              "stats": stats, "nodes": N, "edges": E, "figures": figmap}
     gpath = os.path.join(d, f"{paper}-denovo.graph.json"); jdump(graph, gpath)
     tpath = os.path.join(d, "text.txt")
-    subprocess.run([sys.executable, os.path.join(HERE, "mira_verify.py"), gpath, tpath])
+    if subprocess.run([sys.executable, os.path.join(HERE, "mira_verify.py"), gpath, tpath]).returncode:
+        print("  stage 8: verification found problems; see the verification file beside the graph")
     if reference:
-        subprocess.run([sys.executable, os.path.join(HERE, "mira_align.py"), gpath, reference, os.path.join(d, "alignment.map.json") if os.path.exists(os.path.join(d, "alignment.map.json")) else "/dev/null", "--out", os.path.join(d, "alignment.json")])
-    subprocess.run([sys.executable, os.path.join(HERE, "mira_viewer.py"), gpath, tpath, "--embed-figures"] + (["--compare", reference, os.path.join(d, "alignment.json"), "--compare-label", "hand-built reference"] if reference and os.path.exists(os.path.join(d, "alignment.json")) else []))
+        subprocess.run(check=True, args=[sys.executable, os.path.join(HERE, "mira_align.py"), gpath, reference, os.path.join(d, "alignment.map.json") if os.path.exists(os.path.join(d, "alignment.map.json")) else "/dev/null", "--out", os.path.join(d, "alignment.json")])
+    subprocess.run(check=True, args=[sys.executable, os.path.join(HERE, "mira_viewer.py"), gpath, tpath, "--embed-figures"] + (["--compare", reference, os.path.join(d, "alignment.json"), "--compare-label", "hand-built reference"] if reference and os.path.exists(os.path.join(d, "alignment.json")) else []))
     print(json.dumps(stats))
     return graph
 
 # ── driver ─────────────────────────────────────────────────────────────────────────────────────
 
-def ensure_text(d, args):
+def ensure_text(d, msid, text_file):
     tpath = os.path.join(d, "text.txt")
-    if "--msid" in args:
-        subprocess.run([sys.executable, os.path.join(HERE, "mira_page_text.py"), args[args.index("--msid") + 1], "--out", d], check=True)
+    if msid:
+        subprocess.run([sys.executable, os.path.join(HERE, "mira_page_text.py"), msid, "--out", d], check=True)
         for f in os.listdir(d):
             if f.endswith(".txt") and f != "text.txt" and not f.startswith("references"): os.replace(os.path.join(d, f), tpath)
-    elif "--text" in args:
-        import shutil; shutil.copy(args[args.index("--text") + 1], tpath)
+    elif text_file:
+        import shutil; shutil.copy(text_file, tpath)
     if not os.path.exists(tpath): sys.exit("no text: pass --msid or --text")
     text = open(tpath, encoding="utf-8").read()
     if not os.path.exists(os.path.join(d, "paper.json")):
@@ -340,38 +364,50 @@ def ensure_text(d, args):
         jdump({"title": text.split("\n", 1)[0].strip(), "doi": fj.get("doi", ""), "version": fj.get("version", "")}, os.path.join(d, "paper.json"))
     return text
 
-def run(paper, args):
-    d = paths(paper); text = ensure_text(d, args)
-    model = args[args.index("--model") + 1] if "--model" in args else DEFAULT_MODEL
-    dry = "--dry-run" in args
-    lo = int(args[args.index("--from") + 1]) if "--from" in args else 1
-    hi = int(args[args.index("--to") + 1]) if "--to" in args else 8
-    ref = args[args.index("--reference") + 1] if "--reference" in args else None
-    L = lambda n: jload(os.path.join(d, f"stage{n}.json"))
+def run(paper, msid=None, text_file=None, lo=1, hi=8, model=DEFAULT_MODEL, dry=False, reference=None):
+    d = paths(paper); text = ensure_text(d, msid, text_file)
+    get = lambda n: jload(os.path.join(d, f"stage{n}.json"))
     s = {}
     for n in range(1, 9):
-        if n < lo: s[n] = L(n); continue
+        if n < lo: s[n] = get(n); continue
         if n > hi: break
         print(f"stage {n} {STAGES[n-1]}" + (" (dry)" if dry else ""))
+        g = lambda k: s[k] or get(k)
         if n == 1: s[1] = stage1(d, text, model, dry)
-        elif n == 2: s[2] = stage2(d, text, s[1] or L(1), model, dry)
-        elif n == 3: s[3] = stage3(d, text, s[2] or L(2), model, dry)
-        elif n == 4: s[4] = stage4(d, text, s[3] or L(3), model, dry)
-        elif n == 5: s[5] = stage5(d, text, s[4] or L(4), s[3] or L(3), s[2] or L(2), model, dry)
-        elif n == 6: s[6] = stage6(d, text, s[2] or L(2), s[3] or L(3), s[4] or L(4), s[5] or L(5), model, dry)
-        elif n == 7: s[7] = stage7(d, text, s[4] or L(4), s[3] or L(3), s[5] or L(5), s[2] or L(2), s[6] or L(6), model, dry)
-        elif n == 8:
-            if dry: print("  stage 8 is code; nothing to render"); break
-            s[8] = stage8(d, paper, text, *(s[k] or L(k) for k in range(1, 8)), ref)
-        if dry and n < 8 and s[n] is not None and not any(s[n].get(k) for k in s[n] if isinstance(s[n].get(k), list)):
-            # a dry run has no replies: later prompts render against empty inputs, which is still useful to read
-            pass
+        elif n == 2: s[2] = stage2(d, text, g(1), model, dry)
+        elif n == 3: s[3] = stage3(d, text, g(2), model, dry)
+        elif n == 4: s[4] = stage4(d, text, g(3), model, dry)
+        elif n == 5: s[5] = stage5(d, text, g(4), g(3), g(2), model, dry)
+        elif n == 6: s[6] = stage6(d, text, g(2), g(3), g(4), g(5), model, dry)
+        elif n == 7: s[7] = stage7(d, text, g(4), g(3), g(5), g(2), g(6), model, dry)
+        elif dry: print("  stage 8 is code; nothing to render")
+        else: s[8] = stage8(d, paper, text, model, *(g(k) for k in range(1, 8)), reference)
 
-def main():
-    a = sys.argv[1:]
-    if not a or a[0] not in ("run", "stage"): sys.exit(__doc__)
-    if a[0] == "run": run(a[1], a[2:])
-    else: run(a[1], ["--from", a[2], "--to", a[2]] + a[3:])
+def options(f):
+    for o in reversed([
+            click.option("--msid", help="eLife manuscript id; fetches the page text"),
+            click.option("--text", "text_file", type=click.Path(exists=True), help="a text file instead of --msid"),
+            click.option("--model", default=DEFAULT_MODEL, show_default=True, help="OpenRouter id, or claude:<id> for the Max subscription"),
+            click.option("--dry-run", "dry", is_flag=True, help="render every prompt; make no call"),
+            click.option("--reference", type=click.Path(exists=True), help="hand-built graph to align against after assembly")]):
+        f = o(f)
+    return f
+
+@click.group(help=__doc__)
+def cli(): pass
+
+@cli.command("run")
+@click.argument("paper")
+@click.option("--from", "lo", type=click.IntRange(1, 8), default=1)
+@click.option("--to", "hi", type=click.IntRange(1, 8), default=8)
+@options
+def run_cmd(paper, **kw): run(paper, **kw)
+
+@cli.command("stage")
+@click.argument("paper")
+@click.argument("n", type=click.IntRange(1, 8))
+@options
+def stage_cmd(paper, n, **kw): run(paper, lo=n, hi=n, **kw)
 
 if __name__ == "__main__":
-    main()
+    cli()

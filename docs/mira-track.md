@@ -225,7 +225,9 @@ deliberately left out of its base spec. Alternative has no name upstream; that i
    tools and MCP off and the stage prompt as the whole system prompt, so the run stays blind; a probe
    confirmed the model sees only the CLI's environment block, the account email and the date. Each
    call's meta records `auth` (`none` means the subscription, not a key) and the API-price equivalent.
-   Temperature and the output cap cannot be set there, so the two backends are not identical runs.
+   The output cap matches (30000 tokens) but temperature cannot be set there, so the two backends
+   are not identical runs. A reply that is not JSON, or one cut off at the cap, stops the run; resume
+   with `--from N`.
 4. Scoring every run against the adjudicated reference, by meaning (not keywords).
 5. A second, unlike paper (Headley, a modelling paper) through the same steps.
 6. The local site: a page for the hand-built graph; later, the site consuming MIRA directly.
