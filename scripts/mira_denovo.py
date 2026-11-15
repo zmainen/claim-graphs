@@ -32,6 +32,7 @@ STAGES = ["inventory", "evidence", "findings", "hypotheses", "alternatives", "ch
 # a figure or table, then its panel letters as written: "Figure 3D", "Figure 2B, C", "Figure 3A–D", "Figure 4A and B"
 PANEL_RE = re.compile(r"\b((?:Supplementary )?(?:Figure|Table) \d+)((?:[A-Z](?![A-Za-z])(?:\s*(?:[–-]|,|and)\s*[A-Z](?![A-Za-z]))*)?)")
 L = lambda i, k: i.get(k) or []   # a list field the model may have sent as null
+T = lambda i, k: str(i.get(k) or "")   # likewise a string field
 
 # ── files ──────────────────────────────────────────────────────────────────────────────────────
 
@@ -196,7 +197,7 @@ def stage3(d, text, ev, model, dry):
     ekeys = {e["key"] for e in ev["evidence"]}
     ok, bad = check_items(rep.get("findings"), text, [
         ("supported", lambda i: True if any(k in ekeys for k in L(i, "supported_by")) else "no known evidence supports it"),
-        ("no statistic", lambda i: True if not re.search(r"\bp\s*[<=>]|t\(\d|BF10|β\s*=", i.get("text", "")) else "statistic in text")])
+        ("no statistic", lambda i: True if not re.search(r"\bp\s*[<=>]|t\(\d|BF10|β\s*=", T(i, "text")) else "statistic in text")])
     used = {k for f in ok for k in L(f, "supported_by") + L(f, "opposed_by")}
     out = {"findings": ok, "evidence_unused": sorted(ekeys - used)}
     if not dry: jdump(out, os.path.join(d, "stage3.json")); jdump(bad, os.path.join(d, "stage3.rejected.json"))
@@ -223,7 +224,7 @@ def stage5(d, text, hyp, fnd, ev, model, dry):
                 if not verbatim(text, e.get("anchor")): return f"{side}: edge anchor not verbatim"
         return True
     ok, bad = check_items(rep.get("alternatives"), text, [
-        ("positive", lambda i: True if not re.match(r"^(The .* (is|was) not|There is no|No )", i.get("text", "")) else "stated as a negation"),
+        ("positive", lambda i: True if not re.match(r"^(The .* (is|was) not|There is no|No )", T(i, "text")) else "stated as a negation"),
         ("edges", edges_ok), ("source", lambda i: True if i.get("source") in ("design", "model", "discussion") else "no source")])
     out = {"alternatives": ok}
     if not dry: jdump(out, os.path.join(d, "stage5.json")); jdump(bad, os.path.join(d, "stage5.rejected.json"))
@@ -239,7 +240,8 @@ def stage6(d, text, ev, fnd, hyp, alt, model, dry):
     ekeys = {e["key"] for e in ev["evidence"]}; ckeys = {f["key"] for f in fnd["findings"]} | {h["key"] for h in hyp["hypotheses"]} | {a["key"] for a in alt["alternatives"]}
     checks = [c for c in L(rep, "checks") if c.get("evidence") in ekeys and c.get("role")]
     cited, bad_c = check_items(rep.get("cited"), text, need=("key", "authors", "year", "title", "journal", "finding"), rules=[
-        ("doi", lambda i: True if re.match(r"^10\.\d{4,}/", i.get("doi", "")) else "no DOI"),
+        ("doi", lambda i: True if re.match(r"^10\.\d{4,}/", T(i, "doi")) else "no DOI"),
+        ("authors", lambda i: True if isinstance(i.get("authors"), list) else "authors not a list"),
         ("bears_on", lambda i: True if i.get("bears_on") in ckeys else f"unknown claim {i.get('bears_on')!r}")])
     requests, bad_r = check_items(rep.get("requests"), text, [
         ("about", lambda i: True if any(k in ckeys for k in L(i, "about")) else "no known target")])
@@ -306,7 +308,7 @@ def stage8(d, paper, text, model, s1, s2, s3, s4, s5, s6, s7, reference):
         for e in L(a, "opposed_by"): edge("opposes", e["evidence"], a["key"])
         for e in L(a, "supported_by"): edge("supports", e["evidence"], a["key"])
     for c in s6["cited"]:
-        entry = f"{', '.join(c['authors'])} ({c['year']}). {c['title']}. {c['journal']} {c.get('volume', '')}:{c.get('pages', '')}."
+        entry = f"{', '.join(c['authors'])} ({c['year']}). {c['title']}. {c['journal']} {T(c, 'volume')}:{T(c, 'pages')}."
         node(c["key"], "SourceDocument", entry, f"Cited work this paper leans on.", c["anchor"], doi=c["doi"], url="https://doi.org/" + c["doi"],
              authors=c["authors"], year=c["year"], journal=c["journal"], volume=c.get("volume"), pages=c.get("pages"), title=c["title"])
         ek = "e_" + c["key"]; node(ek, "Evidence", c["finding"], S.get(ek), c["anchor"], subtype="Cited", sourceDocument=c["key"], panel=f"cited: {entry.split('(')[0].strip()}")
