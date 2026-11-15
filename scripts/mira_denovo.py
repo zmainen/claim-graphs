@@ -12,8 +12,11 @@ Usage:
   mira_denovo.py stage <paper> N                      # one stage, inputs from the files on disk
 --dry-run renders every prompt it can from the inputs on disk and makes no call.
 Model default: anthropic/claude-sonnet-4.5 (OpenRouter id); the key comes from the Keychain.
+--model claude:<id> (e.g. claude:claude-sonnet-4-5) runs each call through `claude -p` on the Max subscription
+instead, isolated so the model sees only the stage prompt: empty temp cwd, no settings, CLAUDE.md, memory,
+tools or MCP. Temperature and the output cap cannot be set there; the CLI defaults apply.
 """
-import json, os, re, subprocess, sys, time
+import json, os, re, subprocess, sys, tempfile, time
 from collections import Counter, OrderedDict
 
 HERE = os.path.dirname(os.path.abspath(__file__)); ROOT = os.environ.get("CLAIM_GRAPHS_ROOT") or os.getcwd()   # the corpus, where runs/ lives
@@ -59,13 +62,33 @@ def parse_json(t):
 
 # ── calls ──────────────────────────────────────────────────────────────────────────────────────
 
+def claude_cli(system, user, model):
+    """One call through Claude Code headless on the subscription. Returns stream()'s (content, reasoning_chars, model, usage, error)."""
+    env = {k: v for k, v in os.environ.items() if not k.startswith(("ANTHROPIC_", "CLAUDE_CODE_USE_", "CLAUDECODE"))}
+    cmd = ["claude", "-p", "--model", model, "--system-prompt", system, "--output-format", "json", "--max-turns", "1",
+           "--tools", "", "--setting-sources", "", "--strict-mcp-config", "--no-session-persistence",
+           "--exclude-dynamic-system-prompt-sections"]
+    with tempfile.TemporaryDirectory() as cwd:
+        try: r = subprocess.run(cmd, input=user, capture_output=True, text=True, cwd=cwd, env=env, timeout=1800)
+        except subprocess.TimeoutExpired: return "", 0, model, None, "timeout"
+    try: ev = json.loads(r.stdout); ev = ev if isinstance(ev, list) else [ev]
+    except ValueError: return "", 0, model, None, (r.stderr or r.stdout)[-2000:] or f"exit {r.returncode}"
+    init = next((e for e in ev if e.get("type") == "system"), {}); j = next((e for e in reversed(ev) if e.get("type") == "result"), {})
+    usage = dict(j.get("usage") or {}, cost_usd_equivalent=j.get("total_cost_usd"), auth=init.get("apiKeySource"),
+                 tools=init.get("tools"), mcp_servers=init.get("mcp_servers"), cli_version=init.get("claude_code_version"))
+    return j.get("result") or "", 0, ",".join(j.get("modelUsage") or {}) or model, usage, \
+        (j.get("result") or j.get("subtype") or "no result") if j.get("is_error") or not j else None
+
 def call(d, tag, system, user, model, dry):
     base = os.path.join(d, "calls", tag)
     open(base + ".prompt.txt", "w", encoding="utf-8").write("## System\n\n" + system + "\n\n## User\n\n" + user)
     if dry: return None
-    body = {"model": model, "temperature": 0.2, "max_tokens": 30000, "stream": True,
-            "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}]}
-    t0 = time.time(); content, reasoning, used, usage, error = stream(body)
+    if model.startswith("claude:"):
+        t0 = time.time(); content, reasoning, used, usage, error = claude_cli(system, user, model[7:])
+    else:
+        body = {"model": model, "temperature": 0.2, "max_tokens": 30000, "stream": True,
+                "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}]}
+        t0 = time.time(); content, reasoning, used, usage, error = stream(body)
     open(base + ".raw.txt", "w", encoding="utf-8").write(content)
     jdump({"model": model, "served_by": used, "usage": usage, "error": error, "seconds": round(time.time() - t0, 1),
            "prompt_chars": len(system) + len(user), "reply_chars": len(content), "reasoning_chars": reasoning,

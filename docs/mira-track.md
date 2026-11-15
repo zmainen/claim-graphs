@@ -220,6 +220,12 @@ deliberately left out of its base spec. Alternative has no name upstream; that i
    or refused. A dry run (`--dry-run`) renders every prompt without a call; the Gädeke dry run is
    on disk. Next: the blind run on Gädeke (the model is `anthropic/claude-sonnet-4.5` on OpenRouter
    by default; pass `--model` to change), then its alignment against the hand graph.
+   `--model claude:claude-sonnet-4-5` runs every call through `claude -p` on the Max subscription
+   instead of OpenRouter. Each call starts in an empty temp folder with settings, CLAUDE.md, memory,
+   tools and MCP off and the stage prompt as the whole system prompt, so the run stays blind; a probe
+   confirmed the model sees only the CLI's environment block, the account email and the date. Each
+   call's meta records `auth` (`none` means the subscription, not a key) and the API-price equivalent.
+   Temperature and the output cap cannot be set there, so the two backends are not identical runs.
 4. Scoring every run against the adjudicated reference, by meaning (not keywords).
 5. A second, unlike paper (Headley, a modelling paper) through the same steps.
 6. The local site: a page for the hand-built graph; later, the site consuming MIRA directly.
