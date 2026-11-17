@@ -10,7 +10,7 @@ records the figure ids and image URLs the page uses, so anchors and figure links
 
 Usage:
   mira_page_text.py <msid> [--out <paper-dir>]     e.g. mira_page_text.py 105391 --out runs/gadeke-2026-guilt-insula/mira-hand
-Writes <out>/<slug>-page.txt and <out>/figures.json.
+Writes <out>/<slug>-page.txt, <out>/figures.json and <out>/references.txt (one reference-list entry per line).
 """
 import json, os, re, sys, urllib.request
 
@@ -33,7 +33,7 @@ def figures(content, msid):
     out = []
     def walk(n):
         if isinstance(n, dict):
-            if n.get("type") == "Figure":
+            if n.get("type") in ("Figure", "Table"):
                 urls = []
                 def u(x):
                     if isinstance(x, dict):
@@ -44,7 +44,7 @@ def figures(content, msid):
                 u(n)
                 rel = next((x for x in urls if x.endswith((".tif", ".jpg", ".png"))), None)
                 ver, file = (rel.split("/")[1], rel.split("/")[-1]) if rel else (None, None)
-                out.append({"id": n.get("id"), "label": n.get("label"), "file": rel,
+                out.append({"id": n.get("id"), "label": (n.get("label") or "").rstrip(":. ") or None, "file": rel,   # eLife labels read "Figure 1:"
                             "image": IIIF.format(msid=msid, ver=ver, file=file, w="max") if rel else None,
                             "thumbnail": IIIF.format(msid=msid, ver=ver, file=file, w="480,") if rel else None,
                             "page": PAGE.format(msid=msid) + "#" + (n.get("id") or "")})
@@ -65,9 +65,22 @@ def main():
     os.makedirs(out, exist_ok=True)
     slug = p.get("msidWithVersion", msid)
     open(os.path.join(out, f"{slug}-page.txt"), "w", encoding="utf-8").write(text)
-    json.dump({"msid": msid, "version": slug, "doi": md.get("versionDoi"), "figures": figures(md["article"]["content"], msid)},
-              open(os.path.join(out, "figures.json"), "w"), indent=1)
-    print(f"{slug}: {len(text):,} chars → {out}/{slug}-page.txt; {len(figures(md['article']['content'], msid))} figures → figures.json")
+    figs = figures(md["article"]["content"], msid)
+    json.dump({"msid": msid, "version": slug, "doi": md.get("versionDoi"), "figures": figs}, open(os.path.join(out, "figures.json"), "w"), indent=1)
+    refs = [reference(r) for r in md.get("references") or []]
+    if refs: open(os.path.join(out, "references.txt"), "w", encoding="utf-8").write("\n".join(refs) + "\n")
+    print(f"{slug}: {len(text):,} chars → {out}/{slug}-page.txt; {len(figs)} figures → figures.json; {len(refs)} references" + (" → references.txt" if refs else ""))
+
+def reference(r):
+    who = ", ".join(" ".join(filter(None, [" ".join(a.get("familyNames", [])), "".join(g[0] for g in a.get("givenNames", []) if g)])) if a.get("type") == "Person"
+                    else a.get("name", "") for a in r.get("authors", []))
+    chain, p = [], r.get("isPartOf")   # issue → volume → periodical, however many levels are present
+    while p: chain.append(p); p = p.get("isPartOf")
+    journal = next((c["name"] for c in reversed(chain) if c.get("name")), "")
+    volume = next((c["volumeNumber"] for c in chain if c.get("volumeNumber")), "")
+    pages = "-".join(str(r[k]) for k in ("pageStart", "pageEnd") if r.get(k))
+    doi = next((i["value"] for i in r.get("identifiers", []) if i.get("name") == "doi"), "")
+    return f"{who} ({(r.get('meta') or {}).get('yearPublished', '')}). {flatten(r.get('title', ''))}. {journal} {volume}:{pages}." + (f" doi:{doi}" if doi else "")
 
 if __name__ == "__main__":
     main()

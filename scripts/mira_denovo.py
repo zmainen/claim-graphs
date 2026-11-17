@@ -32,6 +32,7 @@ STAGES = ["inventory", "evidence", "findings", "hypotheses", "alternatives", "ch
 # a figure or table, then its panel letters as written: "Figure 3D", "Figure 2B, C", "Figure 3A–D", "Figure 4A and B"
 PANEL_RE = re.compile(r"\b((?:Supplementary )?(?:Figure|Table) \d+)((?:[A-Z](?![A-Za-z])(?:\s*(?:[–-]|,|and)\s*[A-Z](?![A-Za-z]))*)?)")
 L = lambda i, k: i.get(k) or []   # a list field the model may have sent as null
+T = lambda i, k: str(i.get(k) or "")   # likewise a string field
 
 # ── files ──────────────────────────────────────────────────────────────────────────────────────
 
@@ -196,7 +197,7 @@ def stage3(d, text, ev, model, dry):
     ekeys = {e["key"] for e in ev["evidence"]}
     ok, bad = check_items(rep.get("findings"), text, [
         ("supported", lambda i: True if any(k in ekeys for k in L(i, "supported_by")) else "no known evidence supports it"),
-        ("no statistic", lambda i: True if not re.search(r"\bp\s*[<=>]|t\(\d|BF10|β\s*=", i.get("text", "")) else "statistic in text")])
+        ("no statistic", lambda i: True if not re.search(r"\bp\s*[<=>]|t\(\d|BF10|β\s*=", T(i, "text")) else "statistic in text")])
     used = {k for f in ok for k in L(f, "supported_by") + L(f, "opposed_by")}
     out = {"findings": ok, "evidence_unused": sorted(ekeys - used)}
     if not dry: jdump(out, os.path.join(d, "stage3.json")); jdump(bad, os.path.join(d, "stage3.rejected.json"))
@@ -223,23 +224,25 @@ def stage5(d, text, hyp, fnd, ev, model, dry):
                 if not verbatim(text, e.get("anchor")): return f"{side}: edge anchor not verbatim"
         return True
     ok, bad = check_items(rep.get("alternatives"), text, [
-        ("positive", lambda i: True if not re.match(r"^(The .* (is|was) not|There is no|No )", i.get("text", "")) else "stated as a negation"),
+        ("positive", lambda i: True if not re.match(r"^(The .* (is|was) not|There is no|No )", T(i, "text")) else "stated as a negation"),
         ("edges", edges_ok), ("source", lambda i: True if i.get("source") in ("design", "model", "discussion") else "no source")])
     out = {"alternatives": ok}
     if not dry: jdump(out, os.path.join(d, "stage5.json")); jdump(bad, os.path.join(d, "stage5.rejected.json"))
     return out
 
-def references_of(d):
-    p = os.path.join(d, "references.txt"); return open(p, encoding="utf-8").read() if os.path.exists(p) else "(no reference list on disk; resolve DOIs from the citations in the text)"
+def references_of(d):   # the page's reference list, or "" when there is none on disk
+    p = os.path.join(d, "references.txt"); return open(p, encoding="utf-8").read().strip() if os.path.exists(p) else ""
 
 def stage6(d, text, ev, fnd, hyp, alt, model, dry):
-    system, user, _ = render(6, {"evidence": ev["evidence"], "findings": fnd["findings"], "hypotheses": hyp["hypotheses"],
-                                 "alternatives": alt["alternatives"], "references": references_of(d), "text": text})
+    refs = references_of(d)
+    system, user, _ = render(6, {"evidence": ev["evidence"], "findings": fnd["findings"], "hypotheses": hyp["hypotheses"], "alternatives": alt["alternatives"],
+                                 "references": refs or "(no reference list on disk; resolve DOIs from the citations in the text)", "text": text})
     rep = call(d, "stage6", system, user, model, dry) or {}
     ekeys = {e["key"] for e in ev["evidence"]}; ckeys = {f["key"] for f in fnd["findings"]} | {h["key"] for h in hyp["hypotheses"]} | {a["key"] for a in alt["alternatives"]}
     checks = [c for c in L(rep, "checks") if c.get("evidence") in ekeys and c.get("role")]
-    cited, bad_c = check_items(rep.get("cited"), text, need=("key", "authors", "year", "title", "journal", "finding"), rules=[
-        ("doi", lambda i: True if re.match(r"^10\.\d{4,}/", i.get("doi", "")) else "no DOI"),
+    cited, bad_c = check_items(rep.get("cited"), text + "\n" + refs, need=("key", "authors", "year", "title", "journal", "finding"), rules=[
+        ("doi", lambda i: True if re.match(r"^10\.\d{4,}/", T(i, "doi")) else "no DOI"),
+        ("authors", lambda i: True if isinstance(i.get("authors"), list) and all(isinstance(a, str) and a for a in i["authors"]) else "authors not a list of names"),
         ("bears_on", lambda i: True if i.get("bears_on") in ckeys else f"unknown claim {i.get('bears_on')!r}")])
     requests, bad_r = check_items(rep.get("requests"), text, [
         ("about", lambda i: True if any(k in ckeys for k in L(i, "about")) else "no known target")])
@@ -270,9 +273,9 @@ def stage7(d, text, hyp, fnd, alt, ev, req, model, dry):
 def stage8(d, paper, text, model, s1, s2, s3, s4, s5, s6, s7, reference):
     fj = jload(os.path.join(d, "figures.json"), {}) or {}
     figs = fj.get("figures", fj) if isinstance(fj, dict) else fj
-    figmap = {f["label"]: f for f in figs if f.get("label")}
+    figmap = {f["label"].rstrip(":. "): f for f in figs if f.get("label")}   # figures.json written before labels were normalised read "Figure 1:"
     def figure_for(panel):
-        m = re.match(r"(Figure \d+)", panel or ""); f = figmap.get(m.group(1)) if m else None
+        m = re.match(r"((?:Supplementary )?(?:Figure|Table) \d+)", panel or ""); f = figmap.get(m.group(1)) if m else None
         return {"label": panel, "image": f["image"], "thumbnail": f["thumbnail"], "page": f["page"]} if f and f.get("image") else None
     N, E = [], []
     def node(key, type, text_, desc, anchor, **x):
@@ -306,7 +309,7 @@ def stage8(d, paper, text, model, s1, s2, s3, s4, s5, s6, s7, reference):
         for e in L(a, "opposed_by"): edge("opposes", e["evidence"], a["key"])
         for e in L(a, "supported_by"): edge("supports", e["evidence"], a["key"])
     for c in s6["cited"]:
-        entry = f"{', '.join(c['authors'])} ({c['year']}). {c['title']}. {c['journal']} {c.get('volume', '')}:{c.get('pages', '')}."
+        entry = f"{', '.join(c['authors'])} ({c['year']}). {c['title']}. {c['journal']} {T(c, 'volume')}:{T(c, 'pages')}."
         node(c["key"], "SourceDocument", entry, f"Cited work this paper leans on.", c["anchor"], doi=c["doi"], url="https://doi.org/" + c["doi"],
              authors=c["authors"], year=c["year"], journal=c["journal"], volume=c.get("volume"), pages=c.get("pages"), title=c["title"])
         ek = "e_" + c["key"]; node(ek, "Evidence", c["finding"], S.get(ek), c["anchor"], subtype="Cited", sourceDocument=c["key"], panel=f"cited: {entry.split('(')[0].strip()}")
@@ -342,7 +345,7 @@ def stage8(d, paper, text, model, s1, s2, s3, s4, s5, s6, s7, reference):
     if subprocess.run([sys.executable, os.path.join(HERE, "mira_verify.py"), gpath, tpath]).returncode:
         print("  stage 8: verification found problems; see the verification file beside the graph")
     if reference:
-        subprocess.run(check=True, args=[sys.executable, os.path.join(HERE, "mira_align.py"), gpath, reference, os.path.join(d, "alignment.map.json") if os.path.exists(os.path.join(d, "alignment.map.json")) else "/dev/null", "--out", os.path.join(d, "alignment.json")])
+        subprocess.run(check=True, args=[sys.executable, os.path.join(HERE, "mira_align.py"), gpath, reference, *[m for m in [os.path.join(d, "alignment.map.json")] if os.path.exists(m)], "--out", os.path.join(d, "alignment.json")])
     subprocess.run(check=True, args=[sys.executable, os.path.join(HERE, "mira_viewer.py"), gpath, tpath, "--embed-figures"] + (["--compare", reference, os.path.join(d, "alignment.json"), "--compare-label", "hand-built reference"] if reference and os.path.exists(os.path.join(d, "alignment.json")) else []))
     print(json.dumps(stats))
     return graph

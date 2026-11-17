@@ -6,7 +6,8 @@ of meaning). Evidence is aligned automatically by the statistics the two items q
 that share two or more numbers (t, p, d, β, voxel counts…) report the same result. The output is
 one file the viewer embeds: for every node on either side, its counterpart on the other, if any.
 
-Usage: mira_align.py <ours.graph.json> <theirs.graph.json> <hand-map.json> [--out alignment.json]
+Usage: mira_align.py <ours.graph.json> <theirs.graph.json> [<hand-map.json>] [--out alignment.json]
+Without a hand map only evidence is aligned.
 hand-map.json: {"claims": {"theirId": "ourId", ...}, "questions": {...}, "requests": {...}, "protocols": {...}}
 """
 import json, re, sys
@@ -16,7 +17,8 @@ def nums(s):
 
 def main():
     a = sys.argv[1:]
-    ours, theirs, hand = (json.load(open(p, encoding="utf-8")) for p in a[:3])
+    ours, theirs = (json.load(open(p, encoding="utf-8")) for p in a[:2])
+    hand = json.load(open(a[2], encoding="utf-8")) if len(a) > 2 and not a[2].startswith("--") else {}
     out = a[a.index("--out") + 1] if "--out" in a else "alignment.json"
     O = {n["id"]: n for n in ours["nodes"]}; T = {n["id"]: n for n in theirs["nodes"]}
     KEY = {n.get("key", n["id"]): n["id"] for n in ours["nodes"]}   # the hand map may use a node's `key` (its mnemonic)
