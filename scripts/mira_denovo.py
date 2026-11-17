@@ -230,18 +230,19 @@ def stage5(d, text, hyp, fnd, ev, model, dry):
     if not dry: jdump(out, os.path.join(d, "stage5.json")); jdump(bad, os.path.join(d, "stage5.rejected.json"))
     return out
 
-def references_of(d):
-    p = os.path.join(d, "references.txt"); return open(p, encoding="utf-8").read() if os.path.exists(p) else "(no reference list on disk; resolve DOIs from the citations in the text)"
+def references_of(d):   # the page's reference list, or "" when there is none on disk
+    p = os.path.join(d, "references.txt"); return open(p, encoding="utf-8").read().strip() if os.path.exists(p) else ""
 
 def stage6(d, text, ev, fnd, hyp, alt, model, dry):
-    system, user, _ = render(6, {"evidence": ev["evidence"], "findings": fnd["findings"], "hypotheses": hyp["hypotheses"],
-                                 "alternatives": alt["alternatives"], "references": references_of(d), "text": text})
+    refs = references_of(d)
+    system, user, _ = render(6, {"evidence": ev["evidence"], "findings": fnd["findings"], "hypotheses": hyp["hypotheses"], "alternatives": alt["alternatives"],
+                                 "references": refs or "(no reference list on disk; resolve DOIs from the citations in the text)", "text": text})
     rep = call(d, "stage6", system, user, model, dry) or {}
     ekeys = {e["key"] for e in ev["evidence"]}; ckeys = {f["key"] for f in fnd["findings"]} | {h["key"] for h in hyp["hypotheses"]} | {a["key"] for a in alt["alternatives"]}
     checks = [c for c in L(rep, "checks") if c.get("evidence") in ekeys and c.get("role")]
-    cited, bad_c = check_items(rep.get("cited"), text, need=("key", "authors", "year", "title", "journal", "finding"), rules=[
+    cited, bad_c = check_items(rep.get("cited"), text + "\n" + refs, need=("key", "authors", "year", "title", "journal", "finding"), rules=[
         ("doi", lambda i: True if re.match(r"^10\.\d{4,}/", T(i, "doi")) else "no DOI"),
-        ("authors", lambda i: True if isinstance(i.get("authors"), list) else "authors not a list"),
+        ("authors", lambda i: True if isinstance(i.get("authors"), list) and all(isinstance(a, str) and a for a in i["authors"]) else "authors not a list of names"),
         ("bears_on", lambda i: True if i.get("bears_on") in ckeys else f"unknown claim {i.get('bears_on')!r}")])
     requests, bad_r = check_items(rep.get("requests"), text, [
         ("about", lambda i: True if any(k in ckeys for k in L(i, "about")) else "no known target")])
@@ -272,9 +273,9 @@ def stage7(d, text, hyp, fnd, alt, ev, req, model, dry):
 def stage8(d, paper, text, model, s1, s2, s3, s4, s5, s6, s7, reference):
     fj = jload(os.path.join(d, "figures.json"), {}) or {}
     figs = fj.get("figures", fj) if isinstance(fj, dict) else fj
-    figmap = {f["label"].rstrip(":. "): f for f in figs if f.get("label")}   # eLife labels read "Figure 1:"
+    figmap = {f["label"].rstrip(":. "): f for f in figs if f.get("label")}   # figures.json written before labels were normalised read "Figure 1:"
     def figure_for(panel):
-        m = re.match(r"(Figure \d+)", panel or ""); f = figmap.get(m.group(1)) if m else None
+        m = re.match(r"((?:Supplementary )?(?:Figure|Table) \d+)", panel or ""); f = figmap.get(m.group(1)) if m else None
         return {"label": panel, "image": f["image"], "thumbnail": f["thumbnail"], "page": f["page"]} if f and f.get("image") else None
     N, E = [], []
     def node(key, type, text_, desc, anchor, **x):
@@ -344,7 +345,7 @@ def stage8(d, paper, text, model, s1, s2, s3, s4, s5, s6, s7, reference):
     if subprocess.run([sys.executable, os.path.join(HERE, "mira_verify.py"), gpath, tpath]).returncode:
         print("  stage 8: verification found problems; see the verification file beside the graph")
     if reference:
-        subprocess.run(check=True, args=[sys.executable, os.path.join(HERE, "mira_align.py"), gpath, reference, os.path.join(d, "alignment.map.json") if os.path.exists(os.path.join(d, "alignment.map.json")) else "/dev/null", "--out", os.path.join(d, "alignment.json")])
+        subprocess.run(check=True, args=[sys.executable, os.path.join(HERE, "mira_align.py"), gpath, reference, *[m for m in [os.path.join(d, "alignment.map.json")] if os.path.exists(m)], "--out", os.path.join(d, "alignment.json")])
     subprocess.run(check=True, args=[sys.executable, os.path.join(HERE, "mira_viewer.py"), gpath, tpath, "--embed-figures"] + (["--compare", reference, os.path.join(d, "alignment.json"), "--compare-label", "hand-built reference"] if reference and os.path.exists(os.path.join(d, "alignment.json")) else []))
     print(json.dumps(stats))
     return graph
