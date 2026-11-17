@@ -6,4 +6,4 @@ runner fills: `{{text}}` the article as eLife Pathways serves it, `{{inventory}}
 `{{findings}}`, `{{hypotheses}}`, `{{alternatives}}`, `{{questions}}`, `{{panel}}` and
 `{{panel_text}}` for the per-panel stage. Agents propose; `scripts/mira_denovo.py` checks. Every
 output is JSON; every node carries an `anchor` copied character for character from the text, and
-anything whose anchor is not found verbatim is refused, not repaired.
+anything whose anchor is not found verbatim is refused, not repaired. The one reading the checker allows is typographic: straight and curly quotes, hyphens and dashes, and non-breaking spaces count as the same, and the anchor is stored with the text's own characters.

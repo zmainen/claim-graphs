@@ -7,6 +7,7 @@ For the panel group you are given, find every sentence in the article that repor
 - `panel`: the panel(s) the result is about, as the article names them ("Figure 3D", "Figure 3D, 3H", "Table 1", "Methods", "Supplementary Table 2").
 - `study`: which study the result belongs to, by key from the inventory. Two studies reporting the same effect are two items.
 - Null results and results reported in Methods or supplementary material are evidence too.
+- Copy anchors exactly: one passage from the article as it stands, never two sentences joined, never reworded. If no single passage says it, choose a shorter clause that does, or leave the item out.
 - Do not summarise. Do not merge. Do not invent a statistic the article does not give; if the article gives none, `text` states the result without one.
 
 Output shape:

@@ -18,7 +18,7 @@ nodes and a checker that *accepts* them; nothing enters the graph on the agent's
 
 - The text is the Reviewed Preprint as eLife Pathways serves it, flattened by `mira_page_text.py`.
   Every node has an `anchor`, verbatim in that text; optional `anchors` for further passages. An
-  agent output without a verbatim anchor is discarded, not repaired.
+  agent output without a verbatim anchor is discarded, not repaired. (Quotes, dashes and non-breaking spaces are read through, and the anchor is stored as the text has it. In the first Gädeke run, 21 of 25 anchor refusals were straight quotes standing in for curly ones.)
 - Node fields follow the delivered JSON: `id`, `type`, `text`, `description`, `anchor`, and the
   extras `subtype`, `panel`, `study`, `figure`, `notes`, `sourceDocument`. Ids are typed
   (Q H F A E K C R S P D) and assigned at assembly, so stages use provisional keys.

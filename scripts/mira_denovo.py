@@ -2,13 +2,13 @@
 """mira_denovo — the staged MIRA extraction, de novo, per docs/design/2026-11-01-mira-denovo-stages.md.
 
 Eight stages. Each stage renders a prompt from extract/prompts/mira/stage-N-*.md, calls the model
-(stage 8 is code), checks the reply, and writes to runs/<paper>/mira-denovo/:
+(stage 8 is code), checks the reply, and writes to runs/<paper>/<run>/ (default mira-denovo):
   stageN.json          accepted items            stageN.rejected.json   refused items with reasons
   calls/stageN[-k].prompt.txt / .raw.txt / .meta.json   every call, for the harness page
 Anchors must be verbatim in text.txt; anything else is refused, not repaired.
 
 Usage:
-  mira_denovo.py run <paper> [--msid 105391 | --text file.txt] [--from N] [--to N] [--model M] [--dry-run] [--reference graph.json]
+  mira_denovo.py run <paper> [--msid 105391 | --text file.txt] [--from N] [--to N] [--model M] [--dry-run] [--reference graph.json] [--run NAME]
   mira_denovo.py stage <paper> N [same options]       # one stage, inputs from the files on disk
 A reply that is not JSON, or a call that fails, stops the run; resume with --from N.
 --dry-run renders every prompt it can from the inputs on disk and makes no call.
@@ -36,8 +36,8 @@ T = lambda i, k: str(i.get(k) or "")   # likewise a string field
 
 # ── files ──────────────────────────────────────────────────────────────────────────────────────
 
-def paths(paper):
-    d = os.path.join(ROOT, "runs", paper, "mira-denovo"); os.makedirs(os.path.join(d, "calls"), exist_ok=True); return d
+def paths(paper, run="mira-denovo"):
+    d = os.path.join(ROOT, "runs", paper, run); os.makedirs(os.path.join(d, "calls"), exist_ok=True); return d
 
 def jload(p, default=None):
     return json.load(open(p, encoding="utf-8")) if os.path.exists(p) else default
@@ -107,14 +107,21 @@ def call(d, tag, system, user, model, dry):
 
 # ── checkers: every stage returns (accepted, rejected) ─────────────────────────────────────────
 
+TYPO = str.maketrans({"‘": "'", "’": "'", "“": '"', "”": '"', "–": "-", "—": "-", "−": "-", "\u00a0": " "})   # one character for one, so offsets survive
+
+def locate(text, a):   # the passage as the text has it, read through typographic quotes and dashes; None if it is not there
+    i = text.translate(TYPO).find(a.translate(TYPO)) if isinstance(a, str) and a else -1
+    return text[i:i + len(a)] if i >= 0 else None
+
 def verbatim(text, a):
-    return bool(a) and a in text
+    return locate(text, a) is not None
 
 def check_items(items, text, rules, need=("key", "text")):
     """rules: list of (name, predicate(item) -> True|reason). Verbatim anchor and the `need` fields are always checked first."""
     ok, bad = [], []
     for it in items or []:
-        why = ([] if verbatim(text, it.get("anchor")) else ["anchor not verbatim"]) + [f"no {f}" for f in need if not it.get(f)]
+        a = locate(text, it.get("anchor")); it = dict(it, anchor=a) if a else it   # keep the text's own characters
+        why = ([] if a else ["anchor not verbatim"]) + [f"no {f}" for f in need if not it.get(f)]
         for name, pred in rules:
             r = pred(it)
             if r is not True: why.append(f"{name}: {r}")
@@ -216,14 +223,19 @@ def stage4(d, text, fnd, model, dry):
 def stage5(d, text, hyp, fnd, ev, model, dry):
     system, user, _ = render(5, {"hypotheses": hyp["hypotheses"], "findings": fnd["findings"], "evidence": ev["evidence"], "text": text})
     rep = call(d, "stage5", system, user, model, dry) or {}
-    ekeys = {e["key"] for e in ev["evidence"]}
+    ekeys = {e["key"] for e in ev["evidence"]}; fsup = {f["key"]: L(f, "supported_by") for f in fnd["findings"]}
+    def resolve(e):   # an edge may name a finding: it stands for the evidence that supports the finding
+        k = e.get("evidence") or e.get("finding")
+        return [dict(e, evidence=x) for x in fsup[k]] if k in fsup and k not in ekeys else [dict(e, evidence=k)]
+    alts = [dict(a, **{s: [x for e in L(a, s) if isinstance(e, dict) for x in resolve(e)] for s in ("opposed_by", "supported_by")})
+            for a in L(rep, "alternatives") if isinstance(a, dict)]
     def edges_ok(i):   # the precision guard: every opposes/supports edge carries its own verbatim inference sentence
         for side in ("opposed_by", "supported_by"):
             for e in L(i, side):
                 if e.get("evidence") not in ekeys: return f"{side}: unknown evidence {e.get('evidence')!r}"
                 if not verbatim(text, e.get("anchor")): return f"{side}: edge anchor not verbatim"
         return True
-    ok, bad = check_items(rep.get("alternatives"), text, [
+    ok, bad = check_items(alts, text, [
         ("positive", lambda i: True if not re.match(r"^(The .* (is|was) not|There is no|No )", T(i, "text")) else "stated as a negation"),
         ("edges", edges_ok), ("source", lambda i: True if i.get("source") in ("design", "model", "discussion") else "no source")])
     out = {"alternatives": ok}
@@ -367,8 +379,8 @@ def ensure_text(d, msid, text_file):
         jdump({"title": text.split("\n", 1)[0].strip(), "doi": fj.get("doi", ""), "version": fj.get("version", "")}, os.path.join(d, "paper.json"))
     return text
 
-def run(paper, msid=None, text_file=None, lo=1, hi=8, model=DEFAULT_MODEL, dry=False, reference=None):
-    d = paths(paper); text = ensure_text(d, msid, text_file)
+def run(paper, msid=None, text_file=None, lo=1, hi=8, model=DEFAULT_MODEL, dry=False, reference=None, run_name="mira-denovo"):
+    d = paths(paper, run_name); text = ensure_text(d, msid, text_file)
     get = lambda n: jload(os.path.join(d, f"stage{n}.json"))
     s = {}
     for n in range(1, 9):
@@ -392,7 +404,8 @@ def options(f):
             click.option("--text", "text_file", type=click.Path(exists=True), help="a text file instead of --msid"),
             click.option("--model", default=DEFAULT_MODEL, show_default=True, help="OpenRouter id, or claude:<id> for the Max subscription"),
             click.option("--dry-run", "dry", is_flag=True, help="render every prompt; make no call"),
-            click.option("--reference", type=click.Path(exists=True), help="hand-built graph to align against after assembly")]):
+            click.option("--reference", type=click.Path(exists=True), help="hand-built graph to align against after assembly"),
+            click.option("--run", "run_name", default="mira-denovo", show_default=True, help="run folder under runs/<paper>/")]):
         f = o(f)
     return f
 

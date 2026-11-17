@@ -2,8 +2,8 @@
 """mira_harness — one page to inspect a de novo run: for each stage, its specification, the prompt
 template, every call as sent and as answered, and what the checker accepted or refused.
 
-Usage: mira_harness.py <paper> [--out harness.html]
-Reads runs/<paper>/mira-denovo/ (CLAIM_GRAPHS_ROOT or cwd), extract/prompts/mira/ and
+Usage: mira_harness.py <paper> [--run mira-denovo] [--out harness.html]
+Reads runs/<paper>/<run>/ (CLAIM_GRAPHS_ROOT or cwd), extract/prompts/mira/ and
 docs/design/2026-11-01-mira-denovo-stages.md from claim-graphs. Self-contained output.
 """
 import glob, html, json, os, re, sys
@@ -49,7 +49,7 @@ def table(items, cols):
 
 def main():
     a = sys.argv[1:]; paper = a[0]
-    d = os.path.join(ROOT, "runs", paper, "mira-denovo")
+    run = a[a.index("--run") + 1] if "--run" in a else "mira-denovo"; d = os.path.join(ROOT, "runs", paper, run)
     out = a[a.index("--out") + 1] if "--out" in a else os.path.join(d, "harness.html")
     specs = spec_sections()
     J = lambda n: json.load(open(p, encoding="utf-8")) if os.path.exists(p := os.path.join(d, f"stage{n}.json")) else None
@@ -103,7 +103,7 @@ table{{border-collapse:collapse;width:100%;font-size:.84rem}}th,td{{text-align:l
 details.call{{border:1px solid var(--rule);border-radius:8px;padding:.4rem .8rem;margin:.4rem 0}}details.call>summary{{cursor:pointer}}details.call details{{margin:.4rem 0}}
 ul{{padding-left:1.2rem}}li{{margin:.15rem 0}}p.ins{{border-left:3px solid var(--rule);padding-left:.8rem;color:var(--ink-2)}}</style></head><body>
 <h1>MIRA de novo · harness · {esc(paper)}</h1>
-<p class=m>Specification: <code>docs/design/2026-11-01-mira-denovo-stages.md</code> · prompts: <code>extract/prompts/mira/</code> · runner: <code>scripts/mira_denovo.py</code> · run directory: <code>runs/{esc(paper)}/mira-denovo/</code>{(' · assembled graph: ' + esc(json.dumps(stats))) if stats else ' · no assembled graph yet'}</p>
+<p class=m>Specification: <code>docs/design/2026-11-01-mira-denovo-stages.md</code> · prompts: <code>extract/prompts/mira/</code> · runner: <code>scripts/mira_denovo.py</code> · run directory: <code>runs/{esc(paper)}/{esc(run)}/</code>{(' · assembled graph: ' + esc(json.dumps(stats))) if stats else ' · no assembled graph yet'}</p>
 <nav>{''.join(f'<a href="#s{n}">{n} {esc(s)}</a>' for n, s in enumerate(STAGES, 1))}</nav>
 {''.join(secs)}
 </body></html>"""
